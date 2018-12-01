@@ -11,12 +11,13 @@ __lua__
 
 --<*visual.lua
 --<*menu_state.lua
+--<*shop_state.lua
 --<*story_state.lua
 --<*platforming_state.lua
 --<*gameover_state.lua
 --<*win_state.lua
 -- <*gfight_state.lua
--- <*memory_state.lua 
+
 
 -- <*vertigo_state.lua
 --------------------------- end imports

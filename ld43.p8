@@ -325,6 +325,130 @@ function menu_state()
 	end
 	return state
 end
+function shop_state(prevstate)
+    music(1)
+    local s={}
+    local ents={}
+    local h=prevstate.hero
+    local timeout=0
+    camera(0,0)
+    function arrow()
+        local e={}
+        e.positions={}
+        add(e.positions, {x=20  -2, y=78}) 
+        add(e.positions, {x=49  -2, y=78}) 
+        add(e.positions, {x=78  -2, y=78}) 
+        add(e.positions, {x=107 -2, y=78}) 
+        e.posidx=1
+        function e:update()
+            if btnp(0) and self.posidx > 1 then     
+                self.posidx-=1
+                sfx(3)
+            elseif btnp(1) and self.posidx <= #self.positions-1 then 
+                self.posidx+=1
+                sfx(3)
+            end
+        end
+        function e:draw()
+            local p=self.positions[self.posidx]
+            spr(75, p.x, p.y)
+        end
+        return e
+    end
+    local txt={}
+    add(txt, tutils({text=msg,centerx=false, x=20,y=8,fg=7,bg=0,bordered=false,shadowed=true,sh=2}))
+    local yy=40
+    add(txt, tutils({text="shop",centerx=true,y=10,fg=7,bg=0,bordered=true,shadowed=true}))
+    add(txt, tutils({text="what do you want?",centerx=true,y=yy,fg=7,bg=0})) yy+=8
+    add(txt, tutils({text="money: "..h.money,centerx=false,y=90,x=10,fg=7,bg=0})) yy+=8
+    local pressx=tutils({text="❎ to choose", blink=true, on_time=15, centerx=true,y=110,fg=7,bg=1,shadowed=true, sh=6})
+    local bought=tutils({text="bougth!",centerx=true,centery=true,fg=7,bg=13, bordered=true})
+    local notenoughmoneyt=tutils({text="not enough money",centerx=true,fg=7,bg=13, y=40,bordered=true})
+    local ar=arrow(20, 86)
+    add(ents, ar)
+    local didboughtit=false
+    local notenoughmoney=false
+    local tick=0
+    local pendingval=""
+    local fuse=true
+    s.update=function()
+        if(didboughtit or notenoughmoney) return
+        timeout+=1
+        for u in all(ents) do
+            u:update()
+        end
+        if timeout > 30 and (btnp(4) or btnp(5)) then 
+            sfx(5)
+            if(ar.posidx==4) curstate=prevstate return 
+            local prices = {5,8,5}
+            if h.money > prices[ar.posidx] then
+                if ar.posidx == 1 or ar.posidx == 2then
+                    h.pigs += ar.posidx
+                elseif ar.posidx == 3 then
+                    h.potions += 1
+                end
+                h.money -= prices[ar.posidx]
+                didboughtit=true
+            else
+                pendingval=value
+                notenoughmoney=true
+            end
+        end
+        if timeout > 30 and fuse then
+            fuse=false
+            add(txt, pressx)
+        end
+    end
+    s.draw=function()
+        cls()
+        rectfill(0,0,127,127, 1)
+        sspr(10*8, 5*8, 8,8,     10,10, 8*3,8*3) 
+        rectfill(5,34, 128-5,128-10, 4)
+        if not didboughtit and not notenoughmoney then
+            local sx = 10
+            local yy = 50
+            local tw = 24 
+            local sp = 5  
+            for i=1,4 do
+                local slottxt="1 pig\n  $5";
+                local c=5
+                local to=0 
+                if i == 4 then
+                    slottxt="bye"
+                    c=6
+                    to=6
+                elseif i == 3 then
+                    slottxt="potion\n  $5"
+                elseif i == 2 then
+                    slottxt="2 pigs\n  $8"
+                end
+                rectfill(sx,yy, sx+tw, yy+tw, c)
+                print(slottxt, sx+1+to, yy+8, 7)
+                sx+=tw+sp
+            end
+            for d in all(ents) do
+                d:draw()
+            end
+            for d in all(txt) do
+                d:draw()
+            end
+        elseif didboughtit then
+            bought:draw()
+            tick+=1
+            if(tick > 30) curstate=prevstate
+        elseif notenoughmoney then
+            notenoughmoneyt:draw()
+            local syy = 100
+            spr(74, 15,syy,1,1,true) 
+            print("back",25,syy+1,7)
+            if btnp(0) or btnp(4) or btnp(1) then 
+                sfx(5)
+                notenoughmoney=false
+            end
+        end
+    end
+    return s
+end
 function story_state()
     local state={}
 	local texts={}
@@ -416,27 +540,6 @@ function platforming_state()
     level.w=(level.hw+level.hs)*level.hcnt+level.fw +level.es
     local deferpos=false
     local pendingmusic=false
-    function bullet(x,y, dir, spd, bullets, dmg)
-        local e=entity({})
-        e:setpos(x,y)
-        e.dir=dir
-        e.spd=spd
-        e.dmg=dmg
-        local bounds_obj=bbox(8,8,0,0,4,6)
-        e:set_bounds(bounds_obj)
-        function e:update()
-            self:setx(self.x+(self.spd*self.dir))
-            if(self.x > cam.x+127)  self:kill()
-            if(self.x < cam.x)      self:kill()
-        end
-        function e:kill()
-            del(bullets,self)
-        end
-        function e:draw()
-            spr(72, self.x, self.y, 1,1)
-        end
-        return e
-    end
     function hero(x,y, bullets, platforming_state)
         local anim_obj=anim()
         local e=entity(anim_obj)
@@ -448,6 +551,12 @@ function platforming_state()
         e:set_anim(2) 
         local bounds_obj=bbox(8,16)
         e:set_bounds(bounds_obj)
+        e.money = 100
+        e.pigs = 0
+        e.potions=0
+        e.pickedupvictim=nil
+        e.blockright=false
+        e.blockleft=false
         e.speed=2
         e.floory=y
         e.jumppw=7
@@ -465,7 +574,6 @@ function platforming_state()
         e.finalboss=false
         e.atacking=false
         e.dropping=false
-        e.potions=0
         e.notifyjumpobj=nil
         e.codes={}
         e.codes.dir='none'
@@ -473,13 +581,6 @@ function platforming_state()
         e.codes.dircode='none'
         e.btimer=0
         e.prevsh=-6300
-        e.memslots={}
-        e.pickedupvictim=nil
-        e.blockright=false
-        e.blockleft=false
-        add(e.memslots,"empty")
-        add(e.memslots,"empty")
-        add(e.memslots,"empty")
         function e:hurt(dmg)
             if(self.flickerer.is_flickering) return
             self:flicker(30)
@@ -573,6 +674,12 @@ function platforming_state()
         end
         function e:update()
             self:controlls()
+            if self.pigs > 0 and self.pickedupvictim == nil then
+                local p = pig(self.x-2, self.y-8)
+                p.flipy = true
+                add(drawables, p)
+                self.pickedupvictim = p
+            end
             if self.y < self.floory then
                 self:sety(self.y + self.grav)
                 self.grav += self.baseaccel * self.accel
@@ -592,6 +699,7 @@ function platforming_state()
             end
         end
         function e:reset()
+            self.pigs = 0
             self.respawned=true
             self.speed=2
             self.floory=y
@@ -625,8 +733,13 @@ function platforming_state()
         e.h = hero
         local idx=flr(rnd(4))+1
         function e:update()
-            if collides(self,self.h) and btnp(2) then 
+            if collides(self,self.h) and btnp(2) and hero.pickedupvictim == nil then 
                 sfx(8)
+                local prevcam = {}
+                prevcam.x = s.cam.x
+                prevcam.y = s.cam.y
+                curstate=shop_state(s)
+                s.cam=prevcam
             end            
         end
         function e:draw()
@@ -671,6 +784,26 @@ function platforming_state()
             end
         end
         return p
+    end
+    function pig(x,y,updateables,drawables)
+        local anim_obj=anim()
+        anim_obj:add(96,1,0.1,2,1) 
+        local e=entity(anim_obj)
+        anim_obj:add(86,4,0.7,1,1,true,function() 
+            del(updateables, e)
+            del(drawables, e)
+        end) 
+        e:setpos(x,y)
+        e:set_anim(1)
+        local bounds_obj=bbox(16,8)
+        e:set_bounds(bounds_obj)
+        function e:sacrifice()
+            self:set_anim(4)
+            s.hero.pigs = 0
+        end
+        function e:update()
+        end
+        return e
     end
     function victim(x,y, hero, updateables, drawables,victims)
         local anim_obj=anim()
@@ -955,6 +1088,7 @@ function platforming_state()
             v:update()
         end
         if hero.dropping and collides(stand.val, hero) then
+            printh("DROPPING")
             local v = hero.pickedupvictim
             hero.pickedupvictim=nil
             v.x = stand.val.x+4
@@ -1026,7 +1160,7 @@ function platforming_state()
             sx+=3
         end
         print("money", wdt+41, sy, 10)
-        local cash = hero.cash or 0
+        local cash = hero.money or 0
         print(cash, wdt+41+6, sy+6, 10)
         sx=5
         sy=yy+12
@@ -1140,7 +1274,7 @@ function win_state()
     return s
 end
 -- <*gfight_state.lua
--- <*memory_state.lua 
+
 
 -- <*vertigo_state.lua
 --------------------------- end imports
@@ -1199,22 +1333,22 @@ fff95fff1f1001f1001f100001ff11ff001f100000001f10000000001f1001f10000000001100000
 07665555555556655665555555555667555655565576667001251155551555501f11f10001f101f101f101f1001f100019119100019101910191019100191000
 00555555555566655666555555555555565556565566666005555555511565501f11f1001f1001f101ff11ff001f100019119100191001910199119900191000
 07666755555565655656555555576667565656565566666065555555511156561ff1ff0001f101ff00110011001ff10019919900019101990011001100199100
-06666655555665655656655555566666565656565566666009000000000000900000000000000000000990000000000000000000000000008888000000000000
-066666555566656556566655555666665656565555555500999000000000099900111110000001ff0009a9000000000001111100000019908aa800000aa00000
-06666655556565655656565555566666565656565576667094999999999999490118ff1000001fff9999aa900000000011899100000199908aa800000aa00000
-0055555555656665566656555555555555565656556666609944444444444449011fff111111ff109aaaaaa90000000011999111111991008aa800000aa00000
-0766675555656a6556a656555557666756565656556666609990000000000999011fff22f222f1109aaaaaa90000000011999559555911008aa800000aa00000
-06666655556666655666665555566666565655565566666094999999999999490011112ff22221009999aa900000000001111599555510008888000000000000
-06666655556565655656565555566666565656565555550099444444444444490000122f222221000009a9000000000000015595555510008aa800000aa00000
-06666655556565655656565555566666565656565576667099900000000009990000111111111000000990000000000000011111111100008888000000000000
-00555555556565655656565555555555565656555566666008118880050000000000600000000000000000000000000000000000000000000000000000000000
-0766675555656565565656555557666756565656556666602a56992a000000800000000000000000000000000000000000000000000000000000000000000000
-06666655666666655666666655566666555555555566666086fafa88009050000000060000000000000000000000000000000000000000000000000000000000
-0666665555555555555555555556666666666666675757576298fa8d000000000090000000600000000000000000000000000000000000000000000000000000
-066666566666666666666666655666660000000006656566844f8a8a080050900000000000000000000000000000000000000000000000000000000000000000
-757575755555555555555555557575757000000006666666a6f89d60000000000050090000000000000000000000000000000000000000000000000000000000
-665656666666666666666666666656566000000000000000a85725a0090809000000005000050000000000000000000000000000000000000000000000000000
-66666660000000000000000000666666600000000000000005865d0600800880000a000000000000000000000000000000000000000000000000000000000000
+06666655555665655656655555566666565656565566666009000000000000900000000000000000000990000009900000000000000000008888000000000000
+066666555566656556566655555666665656565555555500999000000000099900111110000001ff0009a900009aa90001111100000019908aa800000aa00000
+06666655556565655656565555566666565656565576667094999999999999490118ff1000001fff9999aa9009aaaa9011899100000199908aa800000aa00000
+0055555555656665566656555555555555565656556666609944444444444449011fff111111ff109aaaaaa99aaaaaa911999111111991008aa800000aa00000
+0766675555656a6556a656555557666756565656556666609990000000000999011fff22f222f1109aaaaaa9999aa99911999559555911008aa800000aa00000
+06666655556666655666665555566666565655565566666094999999999999490011112ff22221009999aa90009aa90001111599555510008888000000000000
+06666655556565655656565555566666565656565555550099444444444444490000122f222221000009a900009aa90000015595555510008aa800000aa00000
+06666655556565655656565555566666565656565576667099900000000009990000111111111000000990000099990000011111111100008888000000000000
+00555555556565655656565555555555565656555566666008118880050000000000600000000000011111110000000000000000000000000000000000000000
+0766675555656565565656555557666756565656556666602a56992a000000800000000000000000014444410000000000000000000000000000000000000000
+06666655666666655666666655566666555555555566666086fafa8800905000000006000000000001f1f1f10000000000000000000000000000000000000000
+0666665555555555555555555556666666666666675757576298fa8d00000000009000000060000001fffff10000000000000000000000000000000000000000
+066666566666666666666666655666660000000006656566844f8a8a080050900000000000000000001ff1100000000000000000000000000000000000000000
+757575755555555555555555557575757000000006666666a6f89d60000000000050090000000000018888810000000000000000000000000000000000000000
+665656666666666666666666666656566000000000000000a85725a0090809000000005000050000188888880000000000000000000000000000000000000000
+66666660000000000000000000666666600000000000000005865d0600800880000a000000000000f188888f0000000000000000000000000000000000000000
 40000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0400000eeee000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 40eeeeee1e1000000000000000007777070000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -1263,14 +1397,14 @@ bb3333933bbb33bbb33bb10000001353339333101555533333933331018e55a008a515a02a56992a
 00000000000000000000000000000014444100000000000000000000ffffffffffffffffff8ffffffffffffffffffffff8f8ffff000000000000000000000000
 00000000000000000000000000000144444410000000000000000000ff8999999fffffffffffffffff8888889ffffffffff88fff000000000000000000000000
 0000000000000000000000000000011111111000000000000000000000988855899fffffffffffff000ee5889fffffffffffffff000000000000000000000000
-000990000000000000fffffffffff00000000000000000000000000000988855899fffffffffffff000ee5889fffffffffffffff000000000000000000000000
-009aa90000000000ff555fffffffff0000ffffffffff00000000000000088855599fffffffffffff00055599fffffffffffffff0000000000000000000000000
-09aaaa9000000000ff5555ffffffff000ffff5fffffff00000000000000555999fffffffffff000f00f99899fffffffffffffff0000000000000000000000000
-9aaaaaa900000000ff55555ffffffff0ffff555fffffff0000000000000555999fffffffffff000f00f99899fffffffffffffff0000000000000000000000000
-999aa99900000000f555555ffffffffff555555ffffffff00000000000055599ffffffffffff000f00ffffffffff00ffff00fff0000000000000000000000000
-009aa90000000000f55555fffffffffff55555fffffffff00000000000f99899ffffff000ffff00f00000000000000fff000fff0000000000000000000000000
-009aa90000000000ff5555ffffffffffff5555ffffffffff0000000000f99899ffffff000ffff00f00000000000000fff000fff0000000000000000000000000
-0099990000000000ffffffffffffffffffffffffffffffff0000000000ffffffffff000000fff00f000000000000fff000fff000000000000000000000000000
+000000000000000000fffffffffff00000000000000000000000000000988855899fffffffffffff000ee5889fffffffffffffff000000000000000000000000
+0000000000000000ff555fffffffff0000ffffffffff00000000000000088855599fffffffffffff00055599fffffffffffffff0000000000000000000000000
+0000000000000000ff5555ffffffff000ffff5fffffff00000000000000555999fffffffffff000f00f99899fffffffffffffff0000000000000000000000000
+0000000000000000ff55555ffffffff0ffff555fffffff0000000000000555999fffffffffff000f00f99899fffffffffffffff0000000000000000000000000
+0000000000000000f555555ffffffffff555555ffffffff00000000000055599ffffffffffff000f00ffffffffff00ffff00fff0000000000000000000000000
+0000000000000000f55555fffffffffff55555fffffffff00000000000f99899ffffff000ffff00f00000000000000fff000fff0000000000000000000000000
+0000000000000000ff5555ffffffffffff5555ffffffffff0000000000f99899ffffff000ffff00f00000000000000fff000fff0000000000000000000000000
+0000000000000000ffffffffffffffffffffffffffffffff0000000000ffffffffff000000fff00f000000000000fff000fff000000000000000000000000000
 0000000000000000ffffffffffffffffffffffffffffffff00111100000000000000000000000000011111000000000000000000000000000000000000000000
 0000000000000000f89999fffffffffff88889ffffffffff01666610000000000011110000000000166661000000000000111100000000000000000000000000
 00000000000000000988589fffffffff00e589ffffffffff166fff10000000000166661000000000166ff1009000000001666610000000000000000000000000

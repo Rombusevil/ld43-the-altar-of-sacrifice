@@ -26,37 +26,6 @@ function platforming_state()
 
     local deferpos=false
     local pendingmusic=false
-
-    function bullet(x,y, dir, spd, bullets, dmg)
-        local e=entity({})
-        e:setpos(x,y)
-        e.dir=dir
-        e.spd=spd
-        e.dmg=dmg
-    
-        local bounds_obj=bbox(8,8,0,0,4,6)
-        e:set_bounds(bounds_obj)
-        -- e.debugbounds=true
-    
-        function e:update()
-            self:setx(self.x+(self.spd*self.dir))
-
-            -- kill the bullet if needed
-            if(self.x > cam.x+127)  self:kill()
-            if(self.x < cam.x)      self:kill()
-        end
-
-        function e:kill()
-            del(bullets,self)
-        end
-        
-        function e:draw()
-            spr(72, self.x, self.y, 1,1)
-            --if(self.debugbounds) self.bounds:printbounds()
-        end
-    
-        return e
-    end
     
     function hero(x,y, bullets, platforming_state)
         local anim_obj=anim()
@@ -73,6 +42,13 @@ function platforming_state()
         local bounds_obj=bbox(8,16)
         e:set_bounds(bounds_obj)
         --e.debugbounds=true
+
+        e.money = 100
+        e.pigs = 0
+        e.potions=0
+        e.pickedupvictim=nil
+        e.blockright=false
+        e.blockleft=false
 
         e.speed=2--1.3
         e.floory=y
@@ -92,7 +68,6 @@ function platforming_state()
         e.atacking=false
         e.dropping=false
         
-        e.potions=0
         e.notifyjumpobj=nil
 
         -- this vars are loaded in the vertigo_state
@@ -102,15 +77,6 @@ function platforming_state()
         e.codes.dircode='none'
         e.btimer=0
         e.prevsh=-6300
-        e.memslots={}
-        e.pickedupvictim=nil
-        e.blockright=false
-        e.blockleft=false
-
-        -- 3 mem slots only
-        add(e.memslots,"empty")
-        add(e.memslots,"empty")
-        add(e.memslots,"empty")
 
         function e:hurt(dmg)
             if(self.flickerer.is_flickering) return
@@ -228,6 +194,14 @@ function platforming_state()
         function e:update()
             self:controlls()
 
+            if self.pigs > 0 and self.pickedupvictim == nil then
+                local p = pig(self.x-2, self.y-8)
+                p.flipy = true
+                add(drawables, p)
+                
+                self.pickedupvictim = p
+            end
+
             if self.y < self.floory then
                 --you're jumping
                 self:sety(self.y + self.grav)
@@ -254,6 +228,7 @@ function platforming_state()
 
         -- when you gameover and choose continue, everything's the same but your stats, that get resetted
         function e:reset()
+            self.pigs = 0
             self.respawned=true
             self.speed=2--1.3
             self.floory=y
@@ -295,13 +270,17 @@ function platforming_state()
         local idx=flr(rnd(4))+1
 
         function e:update()
-            if collides(self,self.h) and btnp(2) then -- up btn
+            if collides(self,self.h) and btnp(2) and hero.pickedupvictim == nil then -- up btn
                 -- *************
                 --  enter house
                 -- *************
                 sfx(8)
                 -- todo: add shopstate
-                --curstate=shop_state()
+                local prevcam = {}
+                prevcam.x = s.cam.x
+                prevcam.y = s.cam.y
+                curstate=shop_state(s)
+                s.cam=prevcam
             end            
         end
         
@@ -362,6 +341,34 @@ function platforming_state()
         end
 
         return p
+    end
+
+    function pig(x,y,updateables,drawables)
+        local anim_obj=anim()
+        anim_obj:add(96,1,0.1,2,1) -- idle
+        local e=entity(anim_obj)
+        anim_obj:add(86,4,0.7,1,1,true,function() 
+            del(updateables, e)
+            del(drawables, e)
+        end) -- explode
+
+        e:setpos(x,y)
+        e:set_anim(1)
+    
+        local bounds_obj=bbox(16,8)
+        e:set_bounds(bounds_obj)
+        -- e.debugbounds=true
+
+        function e:sacrifice()
+            self:set_anim(4)
+            -- todo: usar la cant de s.hero.pigs  para sumar points o whatever
+            s.hero.pigs = 0
+        end
+
+        function e:update()
+        end
+    
+        return e
     end
 
     function victim(x,y, hero, updateables, drawables,victims)
@@ -779,6 +786,7 @@ function platforming_state()
         end
 
         if hero.dropping and collides(stand.val, hero) then
+            printh("DROPPING")
             local v = hero.pickedupvictim
             hero.pickedupvictim=nil
             v.x = stand.val.x+4
@@ -901,7 +909,7 @@ function platforming_state()
         end
 
         print("money", wdt+41, sy, 10)
-        local cash = hero.cash or 0
+        local cash = hero.money or 0
         print(cash, wdt+41+6, sy+6, 10)
 
         sx=5
