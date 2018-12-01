@@ -12,7 +12,6 @@ __lua__
 --<*visual.lua
 --<*menu_state.lua
 --<*shop_state.lua
---<*story_state.lua
 --<*platforming_state.lua
 --<*gameover_state.lua
 --<*win_state.lua
@@ -25,8 +24,7 @@ __lua__
 -- to enable mouse support uncomment all of the following commented lines:
 -- poke(0x5f2d, 1) -- enables mouse support
 function _init()
-    -- curstate=menu_state()
-    curstate=platforming_state()
+    curstate=menu_state()
 end
 
 function _update()

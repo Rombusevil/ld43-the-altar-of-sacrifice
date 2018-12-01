@@ -35,7 +35,7 @@ function menu_state()
 	local frfg=6
 		
 	state.update=function()
-        if(btnp(5)) sfx(4) curstate=story_state() -- "X"
+        if(btnp(5)) sfx(4) curstate=platforming_state() -- "X"
 	end
 	
 	cls()

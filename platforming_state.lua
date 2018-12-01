@@ -45,7 +45,7 @@ function platforming_state()
 
         e.money = 0
         e.pigs = 0
-        e.sacrifices=19
+        e.sacrifices=0
         e.maxsacrifices=20
         e.potions=0
         e.pickedupvictim=nil
@@ -97,7 +97,7 @@ function platforming_state()
                 curstate=s
                 pendingmusic=true
                 -- self:reset()
-                curstate=gameover_state(s)
+                curstate=gameover_state('health')
             end
         end
 
@@ -386,12 +386,11 @@ function platforming_state()
     function victim(x,y, hero, updateables, drawables,victims)
         local anim_obj=anim()
 
-        local spr=40
-        if (flr(rnd(2)+1)%2==0) spr+=04
-        -- todo randomizar si spr 40 o 44
-        anim_obj:add(spr,1,0.1,1,2) -- idle
-        anim_obj:add(spr+1,3,0.9,1,2) -- runaway
-        anim_obj:add(spr+32,1,0.9,2,1) -- pickedup
+        local spri=40
+        if (flr(rnd(2)+1)%2==0) spri+=04
+        anim_obj:add(spri,1,0.1,1,2) -- idle
+        anim_obj:add(spri+1,3,0.9,1,2) -- runaway
+        anim_obj:add(spri+32,1,0.9,2,1) -- pickedup
         local e=entity(anim_obj)
         e:setpos(x,y)
         e:set_anim(1)
@@ -399,6 +398,8 @@ function platforming_state()
         e.runaway = false
         e.runawaytick=0
         e.dir = 1
+        e.isupset=false
+        e.pickedup=false
 
         anim_obj:add(86,4,0.7,1,1,true,function() 
             del(updateables, e)
@@ -417,6 +418,7 @@ function platforming_state()
                 attacker:pickup(self)
                 self:set_anim(3) -- pickedup
                 self.runaway=false
+                self.pickedup=true
             else
                 self.runaway=true
                 self:set_anim(2)
@@ -433,6 +435,13 @@ function platforming_state()
             self:set_anim(4)
         end
 
+        function e:upset()
+            if not self.isupset then
+                self.isupset=true
+                hero.reputation-=3
+            end
+        end
+
         function e:update()
             if self.runaway then
                 self.runawaytick+=1
@@ -442,9 +451,29 @@ function platforming_state()
                     self.flipx=not self.flipx
                     self.runawaytick = 0
                 end
+
+                printh(#victims)
+                for v in all(victims) do
+                    printh("iterando")
+                    if not (v==self) then
+                        printh("factible")
+                        if collides(v,self) then
+                            printh("upseteando")
+                            v:upset()
+                        end
+                    end
+                end
             end
         end
-    
+
+        e._draw=e.draw
+        function e:draw()
+            self:_draw()
+
+            if self.isupset == true and not self.runaway and not self.pickedup then
+                spr(78, self.x-4, self.y-4, 1,1)
+            end
+        end
         return e
     end
 
@@ -859,10 +888,18 @@ function platforming_state()
 
         local keepgoing=true
         for v in all(victims) do
-            if keepgoing and hero.atacking and collides(v, hero) then
-                v:hurt(hero)
-                keepgoing=false
+            if collides(v, hero) then
+                if keepgoing and hero.atacking  then
+                    v:hurt(hero)
+                    keepgoing=false
+                elseif hero.pickedupvictim ~= nil and v ~= hero.pickedupvictim then
+                    v:upset()
+                    if hero.reputation <=0 then
+                        curstate=gameover_state('reputation')
+                    end
+                end
             end
+            
             v:update()
         end
 

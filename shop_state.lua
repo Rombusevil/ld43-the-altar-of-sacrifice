@@ -76,7 +76,7 @@ function shop_state(prevstate)
                 end
                 -- todo: sfx de buy
                 h.money -= prices[ar.posidx]
-                h.reputation += 10
+                h.reputation += flr(prices[ar.posidx] / 2)
                 if (h.reputation > 15) then h.reputation=15 end
                 didboughtit=true
             else
