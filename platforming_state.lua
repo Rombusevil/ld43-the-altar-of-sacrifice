@@ -364,7 +364,7 @@ function platforming_state()
         return p
     end
 
-    function victim(x,y)
+    function victim(x,y, hero, updateables, drawables,victims)
         local anim_obj=anim()
 
         local spr=40
@@ -373,8 +373,6 @@ function platforming_state()
         anim_obj:add(spr,1,0.1,1,2) -- idle
         anim_obj:add(spr+1,3,0.9,1,2) -- runaway
         anim_obj:add(spr+32,1,0.9,2,1) -- pickedup
-        anim_obj:add(86,4,0.7,1,1) -- explode
-    
         local e=entity(anim_obj)
         e:setpos(x,y)
         e:set_anim(1)
@@ -382,6 +380,12 @@ function platforming_state()
         e.runaway = false
         e.runawaytick=0
         e.dir = 1
+
+        anim_obj:add(86,4,0.7,1,1,true,function() 
+            del(updateables, e)
+            del(drawables, e)
+            del(victims, e)
+        end) -- explode
     
         local bounds_obj=bbox(8,8)
         e:set_bounds(bounds_obj)
@@ -423,17 +427,10 @@ function platforming_state()
             end
         end
     
-        -- overwrite entity's draw() function
-        -- e._draw=e.draw
-        -- function e:draw()
-        --     self:_draw()
-        --     ** your code here **
-        -- end
-    
         return e
     end
 
-    function npccreator(parent,houses,potioncreator)
+    function npccreator(parent,houses,potioncreator,hero,updateables,drawables)
         local e={}
 
         e.ticks=1
@@ -459,7 +456,7 @@ function platforming_state()
                 local house = houses[idx]
                 local rndx = rnd(10)
 
-                local v = victim(house.x-rndx,70)
+                local v = victim(house.x-rndx,70,hero, updateables,drawables,parent)
                 for b in all(parent) do
                     if collides(b, v) then 
                         v.y += rnd(3)
@@ -735,7 +732,7 @@ function platforming_state()
     local stand = {}
     mapbuild(level, hero, s, houses,stand)
 
-    local ec = npccreator(victims, houses,pc)
+    local ec = npccreator(victims, houses,pc, hero,updateables,drawables)
     add(updateables, ec)
     -- cuando salta hace algo
     -- hero:set_notifyjumpobj(ec)

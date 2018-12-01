@@ -672,14 +672,13 @@ function platforming_state()
         end
         return p
     end
-    function victim(x,y)
+    function victim(x,y, hero, updateables, drawables,victims)
         local anim_obj=anim()
         local spr=40
         if (flr(rnd(2)+1)%2==0) spr+=04
         anim_obj:add(spr,1,0.1,1,2) 
         anim_obj:add(spr+1,3,0.9,1,2) 
         anim_obj:add(spr+32,1,0.9,2,1) 
-        anim_obj:add(86,4,0.7,1,1) 
         local e=entity(anim_obj)
         e:setpos(x,y)
         e:set_anim(1)
@@ -687,6 +686,11 @@ function platforming_state()
         e.runaway = false
         e.runawaytick=0
         e.dir = 1
+        anim_obj:add(86,4,0.7,1,1,true,function() 
+            del(updateables, e)
+            del(drawables, e)
+            del(victims, e)
+        end) 
         local bounds_obj=bbox(8,8)
         e:set_bounds(bounds_obj)
         function e:hurt(attacker)
@@ -701,6 +705,7 @@ function platforming_state()
                 self:set_anim(2)
                 if flr(rnd(1)+1)%2==0 then
                     self.dir=-1
+                    self.flipx=true
                 else
                     self.dir=1
                 end
@@ -722,7 +727,7 @@ function platforming_state()
         end
         return e
     end
-    function npccreator(parent,houses,potioncreator)
+    function npccreator(parent,houses,potioncreator,hero,updateables,drawables)
         local e={}
         e.ticks=1
         e.threshold=2
@@ -741,7 +746,7 @@ function platforming_state()
                 local idx = flr(rnd(#houses-1)+1)
                 local house = houses[idx]
                 local rndx = rnd(10)
-                local v = victim(house.x-rndx,70)
+                local v = victim(house.x-rndx,70,hero, updateables,drawables,parent)
                 for b in all(parent) do
                     if collides(b, v) then 
                         v.y += rnd(3)
@@ -922,7 +927,7 @@ function platforming_state()
     local houses = {}
     local stand = {}
     mapbuild(level, hero, s, houses,stand)
-    local ec = npccreator(victims, houses,pc)
+    local ec = npccreator(victims, houses,pc, hero,updateables,drawables)
     add(updateables, ec)
     local boulders = {}
     local brain = boulderrain(updateables, drawables, boulders, hero)
