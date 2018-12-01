@@ -303,68 +303,68 @@ function platforming_state()
         return e
     end
 
-    function priest(x,y,hero,enemies,potioncreator)
-        local anim_obj=anim()
-        local e=entity(anim_obj)
-        
-        y=y+8
-        anim_obj:add(119,4,0.2,1,1,true,function() e:set_anim(2) e:sety(e.y-8) e.justborn=10 sfx(7) end)     -- spawn
-        anim_obj:add(86,4,0.2,2,2) -- walk
-        anim_obj:add(135,6,0.3,1,2,true,function() del(enemies, e) end) -- die
+    --function priest(x,y,hero,enemies,potioncreator)
+    --    local anim_obj=anim()
+    --    local e=entity(anim_obj)
+    --    
+    --    y=y+8
+    --    anim_obj:add(119,4,0.2,1,1,true,function() e:set_anim(2) e:sety(e.y-8) e.justborn=10 sfx(7) end)     -- spawn
+    --    anim_obj:add(86,4,0.2,2,2) -- walk
+    --    anim_obj:add(135,6,0.3,1,2,true,function() del(enemies, e) end) -- die
 
-        e:setpos(x,y)
-        e:set_anim(1)
-        e.spd=0.8
-        e.justborn=-1 -- throwing a timing before chasing hero after spawn
-        e.born=false
-        e.dying=false
-        e.prevflipx=false
-        e.dmg=1
+    --    e:setpos(x,y)
+    --    e:set_anim(1)
+    --    e.spd=0.8
+    --    e.justborn=-1 -- throwing a timing before chasing hero after spawn
+    --    e.born=false
+    --    e.dying=false
+    --    e.prevflipx=false
+    --    e.dmg=1
   
-        local bounds_obj=bbox(8,8)
-        e:set_bounds(bounds_obj)
-        -- e.debugbounds=true
+    --    local bounds_obj=bbox(8,8)
+    --    e:set_bounds(bounds_obj)
+    --    -- e.debugbounds=true
 
-        sfx(1)
-    
-        function e:update()
-            if(self.dying) return
+    --    sfx(1)
+    --
+    --    function e:update()
+    --        if(self.dying) return
 
-            if self.born then
-                if self.x > hero.x + 1 then
-                    if(not self.prevflipx) self:setx(self.x-8)
-                    self.prevflipx=true
-                    self.flipx=true
-                    self:setx(self.x-self.spd)
-                elseif self.x < hero.x-8 then
-                    self.prevflipx=false
-                    self.flipx=false
-                    self:setx(self.x+self.spd)
-                else
-                    hero:hurt(self.dmg)
-                end
-            elseif self.justborn != -1 then
-                -- enters here when spawning anim is done
-                if self.justborn > 0 then
-                    self.justborn-=1
-                end
+    --        if self.born then
+    --            if self.x > hero.x + 1 then
+    --                if(not self.prevflipx) self:setx(self.x-8)
+    --                self.prevflipx=true
+    --                self.flipx=true
+    --                self:setx(self.x-self.spd)
+    --            elseif self.x < hero.x-8 then
+    --                self.prevflipx=false
+    --                self.flipx=false
+    --                self:setx(self.x+self.spd)
+    --            else
+    --                hero:hurt(self.dmg)
+    --            end
+    --        elseif self.justborn != -1 then
+    --            -- enters here when spawning anim is done
+    --            if self.justborn > 0 then
+    --                self.justborn-=1
+    --            end
 
-                if self.justborn == 0 then
-                    self.born = true
-                end
-            end
-        end
+    --            if self.justborn == 0 then
+    --                self.born = true
+    --            end
+    --        end
+    --    end
 
-        function e:hurt(dmg)
-            self.dying = true
-            if(self.flipx) self:setx(self.x+8) -- compensate width change
-            self:set_anim(3) --die
-            potioncreator:tick({x=self.x, y=self.y})
-            sfx(6)
-        end
+    --    function e:hurt(dmg)
+    --        self.dying = true
+    --        if(self.flipx) self:setx(self.x+8) -- compensate width change
+    --        self:set_anim(3) --die
+    --        potioncreator:tick({x=self.x, y=self.y})
+    --        sfx(6)
+    --    end
 
-        return e
-    end
+    --    return e
+    --end
 
     -- the potioncreator creates a potion every threshold kills of enemies
     function potioncreator(potions)
@@ -393,7 +393,36 @@ function platforming_state()
         return p
     end
 
-    function enemycreator(enemies,hero,potioncreator)
+    function victim(x,y)
+        local anim_obj=anim()
+
+        local spr=40
+        -- todo randomizar si spr 40 o 44
+        anim_obj:add(spr,1,0.1,1,2) -- idle
+        anim_obj:add(spr+8,2,0.9,1,2) -- attacking
+    
+        local e=entity(anim_obj)
+        e:setpos(x,y)
+        e:set_anim(1)
+    
+        local bounds_obj=bbox(8,8)
+        e:set_bounds(bounds_obj)
+        -- e.debugbounds=true
+    
+        function e:update()
+        end
+    
+        -- overwrite entity's draw() function
+        -- e._draw=e.draw
+        -- function e:draw()
+        --     self:_draw()
+        --     ** your code here **
+        -- end
+    
+        return e
+    end
+
+    function npccreator(parent,houses,hero,potioncreator)
         local e={}
 
         e.ticks=1
@@ -414,6 +443,23 @@ function platforming_state()
         function e:update()
             self.timetick+=1
 
+            if self.timetick > self.timethreshold then
+                local idx = flr(rnd(#houses-1)+1)
+                local house = houses[idx]
+                local rndx = rnd(10)
+
+                local v = victim(house.x-rndx, hero.y)
+                for b in all(parent) do
+                    if collides(b, v) then 
+                        v.y += rnd(3)
+                        v.x += rnd(6)*16
+                    end
+                end
+
+                add(parent, v)
+                self.timetick=0
+            end
+
             -- local cenemy = false
             -- if self.timetick > self.timethreshold and hero.x > 130 then
             --     local side=1
@@ -432,8 +478,8 @@ function platforming_state()
             -- end
 
             -- if  jenemy or cenemy then
-            --     local e=priest(self.lastpos.x, self.lastpos.y, hero, enemies,potioncreator)
-            --     add(enemies, e)
+            --     local e=priest(self.lastpos.x, self.lastpos.y, hero, parent,potioncreator)
+            --     add(parent, e)
             -- end
         end
 
@@ -491,7 +537,7 @@ function platforming_state()
     end
 
     -- receives a level config as argument
-    function mapbuild(l, hero,this_state)
+    function mapbuild(l,hero,this_state,houses)
         local xx=128    -- starting x for first house
         local hy=44     -- house y position (doesn't change)
         local fx=xx+((l.hs+l.hw)*3)-64 -- forest starting x 
@@ -531,15 +577,16 @@ function platforming_state()
         end
         sf()
 
-        add(drawables, sacrificestand(420, hero.y))
+        add(drawables, sacrificestand(hero.x+20, hero.y))
 
         -- *************************
         --      setup houses
         -- *************************
         for i=1,l.hcnt do
-            local c = house(xx,hy,hero)
-            add(drawables, c)
-            add(updateables, c)
+            local ho = house(xx,hy,hero)
+            add(drawables, ho)
+            add(updateables, ho)
+            add(houses, ho)
             xx+=l.hw+l.hs       -- setup x for the next house
             if(i==3) xx+=l.fw   -- put 3 houses, then the forest, and then the rest
         end
@@ -555,18 +602,19 @@ function platforming_state()
         add(drawables, sright)
     end
 
-    local hero = hero(120,70, bullets, s)
+    local hero = hero(400,70, bullets, s)
     s.hero = hero
     
     local pc = potioncreator(potions)
     add(updateables, pc)
 
-    local ec = enemycreator(enemies, hero,pc)
+    local houses = {}
+    mapbuild(level, hero, s, houses)
+
+    local ec = npccreator(enemies, houses, hero,pc)
     add(updateables, ec)
     -- cuando salta hace algo
     -- hero:set_notifyjumpobj(ec)
-
-    mapbuild(level, hero, s)
     
     add(updateables, hero)
     add(drawables, hero)
@@ -593,7 +641,7 @@ function platforming_state()
             u:update()
         end
 
-        s.updateblts(bullets, enemies, true)
+        -- s.updateblts(bullets, enemies, true)
 
         for e in all(enemies) do
             e:update()
@@ -672,23 +720,23 @@ function platforming_state()
         end
     end
 
-    s.updateblts=function(bullets, enemies, priest)
-        for b in all(bullets) do
-            b:update()
-
-            -- check collisions between bullets and enemies
-            for e in all(enemies) do
-                
-                if not priest or (not e.dying and e.born) then
-                    if collides(b, e) then
-                        b:kill()
-                        e:hurt(b.dmg)
-                        break
-                    end
-                end
-            end
-        end
-    end
+    -- s.updateblts=function(bullets, enemies, priest)
+    --     for b in all(bullets) do
+    --         b:update()
+ 
+    --         -- check collisions between bullets and enemies
+    --         for e in all(enemies) do
+    --             
+    --             if not priest or (not e.dying and e.born) then
+    --                 if collides(b, e) then
+    --                     b:kill()
+    --                     e:hurt(b.dmg)
+    --                     break
+    --                 end
+    --             end
+    --         end
+    --     end
+    -- end
 
     s.drawhud=function()
         camera(0,0)
@@ -714,6 +762,8 @@ function platforming_state()
         end
 
         print("money", wdt+41, sy, 10)
+        local cash = hero.cash or 0
+        print(cash, wdt+41+6, sy+6, 10)
 
         sx=5
         sy=yy+12
