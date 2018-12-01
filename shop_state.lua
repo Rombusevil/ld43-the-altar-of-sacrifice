@@ -74,7 +74,10 @@ function shop_state(prevstate)
                 elseif ar.posidx == 3 then
                     h.potions += 1
                 end
+                -- todo: sfx de buy
                 h.money -= prices[ar.posidx]
+                h.reputation += 10
+                if (h.reputation > 15) then h.reputation=15 end
                 didboughtit=true
             else
                 -- memory slot occupied, overwrite?

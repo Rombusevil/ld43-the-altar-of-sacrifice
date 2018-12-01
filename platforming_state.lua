@@ -4,30 +4,28 @@ function platforming_state()
     local s={}
     local updateables={}
     local drawables={}
-    local bullets={}
-    s.bullets=bullets
+    local thiefs={}
     local victims={}
     local potions={}
     local cam={x=0, y=0}
     s.cam = cam
 
-    local respawned=false
     local showmsg=false
     local showmsgtxt=""
     local rtick=0
     
     local level={}
     level.hs=150 -- house spacing
-    level.fw=256 -- forest width
+    level.fw=150 -- forest width
     level.es=128 -- end spacing
     level.hw=48  -- house width
-    level.hcnt=5 -- house count
+    level.hcnt=3 -- house count
     level.w=(level.hw+level.hs)*level.hcnt+level.fw +level.es
 
     local deferpos=false
     local pendingmusic=false
     
-    function hero(x,y, bullets, platforming_state)
+    function hero(x,y, platforming_state)
         local anim_obj=anim()
         local e=entity(anim_obj)
 
@@ -35,6 +33,8 @@ function platforming_state()
         anim_obj:add(5,1,0.01,1,2) -- idle
         anim_obj:add(6,1,0.01,1,2) -- jumping
         anim_obj:add(7,1,0.5,2,2,true, function() e.shooting=false end) -- shoot
+        anim_obj:add(123,4,0.3,1,2) -- running with someone on the head
+        anim_obj:add(127,1,0.01,1,2) -- idle with victim
 
         e:setpos(x,y)
         e:set_anim(2) --idle
@@ -49,6 +49,7 @@ function platforming_state()
         e.pickedupvictim=nil
         e.blockright=false
         e.blockleft=false
+        e.reputation = 15
 
         e.speed=2--1.3
         e.floory=y
@@ -61,7 +62,6 @@ function platforming_state()
         e.wasshooting=false
         e.compensate=false
         e.compensatepx=-8
-        e.bulletspd=4
         e.health=20
         e.dmg=1
         e.finalboss=false
@@ -128,15 +128,28 @@ function platforming_state()
                 if btn(0) and not self.blockleft then     --left
                     self:setx(self.x-self.speed)
                     self.flipx=true
-                    self:set_anim(1) --running
+                    if self.pickedupvictim == nil then
+                        self:set_anim(1) --running
+                    else
+                        self:set_anim(5) -- running with victim
+                    end
+
                     self.blockright=false
                 elseif btn(1) and not self.blockright then --right
                     self:setx(self.x+self.speed)
                     self.flipx=false
-                    self:set_anim(1) --running
+                    if self.pickedupvictim ==nil then
+                        self:set_anim(1) --running
+                    else
+                        self:set_anim(5) -- running with victim
+                    end
                     self.blockleft=false
                 else
-                    self:set_anim(2) --idle
+                    if self.pickedupvictim ==nil then
+                        self:set_anim(2) --idle
+                    else
+                        self:set_anim(6) -- idle with victim
+                    end
                 end
                 
                 -- the up button is taken care on the house entity
@@ -176,11 +189,6 @@ function platforming_state()
                             self.bounds.xoff1+=8
                             self.bounds.xoff2+=8
                         end
-
-                        -- todo: hurt victim
-                        -- todo: delete bullet()
-                        -- local b=bullet(self.x+4, self.y+4, dir, self.bulletspd, bullets, self.dmg)
-                        -- add(bullets, b)
                     else
                         self.dropping = true
                     end
@@ -242,7 +250,6 @@ function platforming_state()
             self.wasshooting=false
             self.compensate=false
             self.compensatepx=-8
-            self.bulletspd=4
             self.health=20
             self.potions=0
             self.codes.dir='none'
@@ -253,7 +260,13 @@ function platforming_state()
                 self.finalboss=false
                 deferpos=750 -- lo mando al forest
             end
-            
+        end
+
+        --overwrite entity's draw() function
+        e._draw=e.draw
+        function e:draw()
+            self:_draw()
+            -- custom draw
         end
     
         return e
@@ -287,6 +300,8 @@ function platforming_state()
         
         function e:draw()
             spr(32, x,y, 6, 4)
+            rectfill(x+32,y+16,x+46,y+20, 5)
+            print("shop",x+32,y+16,8)
             -- if(self.debugbounds) self.bounds:printbounds()
         end
 
@@ -403,7 +418,6 @@ function platforming_state()
             self.health -=1
             self:flicker(0.2)
             if self.health <= 0 then
-                -- todo: implement pickup en hero
                 attacker:pickup(self)
                 self:set_anim(3) -- pickedup
                 self.runaway=false
@@ -438,7 +452,7 @@ function platforming_state()
         return e
     end
 
-    function npccreator(parent,houses,potioncreator,hero,updateables,drawables)
+    function npccreator(parent,houses,potioncreator,hero,updateables,drawables, level)
         local e={}
 
         e.ticks=1
@@ -449,15 +463,28 @@ function platforming_state()
 
         e.timetick=0
         e.timethreshold=100
+        e.ttick=0
+        e.thiefthreshold=1000
+        e.level = level
 
         function e:tick(pos)
             self.ticks+=1
+            self.ttick+=1
             self.lastpos.x=pos.x
             --self.lastpos.y=pos.y
         end
 
         function e:update()
             self.timetick+=1
+            self.ttick+=1
+
+            if self.ttick > self.thiefthreshold then
+                self.ttick=0
+                local t = thief(-16, 70, self.level)
+                add(drawables, t)
+                add(updateables, t)
+                add(thiefs, t)
+            end
 
             if self.timetick > self.timethreshold then
                 local idx = flr(rnd(#houses-1)+1)
@@ -475,28 +502,6 @@ function platforming_state()
                 add(parent, v)
                 self.timetick=0
             end
-
-            -- local cenemy = false
-            -- if self.timetick > self.timethreshold and hero.x > 130 then
-            --     local side=1
-            --     if(flr(rnd(2))%2==0) side=-1
-            --     self.lastpos.x = hero.x + ((flr(rnd(4))+16) *side)
-            --     
-            --     self.timetick=0
-            --     cenemy = true
-            -- end
- 
-            -- local jenemy=false
-            -- if self.ticks >= self.threshold then 
-            --     self.ticks=0
-            --     self.timetick+=10
-            --     jenemy=true
-            -- end
-
-            -- if  jenemy or cenemy then
-            --     local e=priest(self.lastpos.x, self.lastpos.y, hero, parent,potioncreator)
-            --     add(parent, e)
-            -- end
         end
 
         return e
@@ -626,13 +631,6 @@ function platforming_state()
             end
         end
     
-        -- overwrite entity's draw() function
-        -- e._draw=e.draw
-        -- function e:draw()
-        --     self:_draw()
-        --     ** your code here **
-        -- end
-    
         return e
     end
 
@@ -661,12 +659,97 @@ function platforming_state()
         return e
     end
 
+    function thief(x,y,level)
+        local anim_obj=anim()
+        anim_obj:add(91,4,0.3,1,2)
+    
+        local e=entity(anim_obj)
+        e:setpos(x,y)
+        e:set_anim(1)
+        e.health = 5
+        e.spd = 1.5
+    
+        local bounds_obj=bbox(8,128,0,-128)
+        e:set_bounds(bounds_obj)
+        --e.debugbounds=true
+    
+        function e:hurt()
+            if(self.flickerer.is_flickering) return
+            self:flicker(30)
+            self.health -= 1
+        end
+
+        function e:kill()
+            del(drawables, self)
+            del(updateables, self)
+            del(thiefs,self)
+        end
+
+        function e:update()
+            if self.health <= 0 then
+                s.hero.money += 50
+                self:kill()
+            end
+
+            self:setx(self.x+self.spd)
+            -- todo: poner coord correcta
+            if self.x > level.w+16 then
+                self:kill()
+            end
+        end
+    
+        return e
+    end
+
+    function fence(x,y)
+        local e={}
+        function e:draw()
+            spr(70,x,y,2,1)
+        end
+        return e
+    end
+
+    function cloud(x)
+        local e={}
+        e.spr = 99
+        e.w=2
+        e.y=5+rnd(40)
+        e.x=x+rnd(35)
+
+        if flr(rnd(2)+1)%2==0 then
+            e.spr=101
+            e.w=1
+        end
+
+        function e:draw()
+            spr(self.spr,x,self.y,e.w,1)
+        end
+        return e
+    end
+
     -- receives a level config as argument
     function mapbuild(l,hero,this_state,houses,stand)
         local xx=128    -- starting x for first house
         local hy=44     -- house y position (doesn't change)
         local fx=xx+((l.hs+l.hw)*3)-64 -- forest starting x 
 
+        -- *************************
+        --      setup fences
+        -- *************************
+        local ssx =0
+        while ssx<l.w+16 do
+            add(drawables,fence(ssx, 60))
+            ssx+=16
+        end
+
+        -- *************************
+        --      setup clouds
+        -- *************************
+        ssx=15
+        while ssx<l.w do
+            add(drawables, cloud(ssx))
+            ssx+=32
+        end
 
         -- *************************
         --      setup forest
@@ -714,8 +797,9 @@ function platforming_state()
             add(updateables, ho)
             add(houses, ho)
             xx+=l.hw+l.hs       -- setup x for the next house
-            if(i==3) xx+=l.fw   -- put 3 houses, then the forest, and then the rest
+            if(i==3) xx+=l.fw   -- put2 houses, then the forest, and then the rest
         end
+        
 
         -- *************************
         --      setup stoppers
@@ -730,7 +814,7 @@ function platforming_state()
         add(updateables, sright)
     end
 
-    local hero = hero(400,70, bullets, s)
+    local hero = hero(400,70, s)
     s.hero = hero
     
     local pc = potioncreator(potions)
@@ -740,7 +824,7 @@ function platforming_state()
     local stand = {}
     mapbuild(level, hero, s, houses,stand)
 
-    local ec = npccreator(victims, houses,pc, hero,updateables,drawables)
+    local ec = npccreator(victims, houses,pc, hero,updateables,drawables,level)
     add(updateables, ec)
     -- cuando salta hace algo
     -- hero:set_notifyjumpobj(ec)
@@ -777,13 +861,17 @@ function platforming_state()
             u:update()
         end
 
-        -- s.updateblts(bullets, victims, true)
-
         for v in all(victims) do
             if hero.atacking and collides(v, hero) then
                 v:hurt(hero)
             end
             v:update()
+        end
+
+        for t in all(thiefs) do 
+            if hero.atacking and collides(t, hero) then
+                t:hurt()
+            end
         end
 
         if hero.dropping and collides(stand.val, hero) then
@@ -837,10 +925,6 @@ function platforming_state()
             d:draw()
         end
 
-        for b in all(bullets) do
-            b:draw()
-        end
-
         for e in all(victims) do
             e:draw()
         end
@@ -854,39 +938,7 @@ function platforming_state()
         --        hud
         -- *****************
         s.drawhud()
-
-        if hero.respawned or showmsg then
-            camera(0,0)
-            rtick+=1
-            if hero.respawned then
-                print("your friends where killed", 15,28, 7)
-                print("you've been respawned", 21,34, 7)
-                if(rtick>100) hero.respawned=false rtick=0
-                showmsg=false
-            elseif showmsg then
-                print(showmsgtxt, 15,28, 7)
-                if(rtick>40) rtick=0
-            end
-        end
     end
-
-    -- s.updateblts=function(bullets, enemies, priest)
-    --     for b in all(bullets) do
-    --         b:update()
- 
-    --         -- check collisions between bullets and enemies
-    --         for e in all(enemies) do
-    --             
-    --             if not priest or (not e.dying and e.born) then
-    --                 if collides(b, e) then
-    --                     b:kill()
-    --                     e:hurt(b.dmg)
-    --                     break
-    --                 end
-    --             end
-    --         end
-    --     end
-    -- end
 
     s.drawhud=function()
         camera(0,0)
@@ -911,9 +963,12 @@ function platforming_state()
             sx+=3
         end
 
-        print("money", wdt+41, sy, 10)
-        local cash = hero.money or 0
-        print(cash, wdt+41+6, sy+6, 10)
+        print("money", wdt+33, sy, 10)
+        local cash = hero.money
+        print(cash, wdt+33+6, sy+6, 10)
+
+        print("pot", wdt+33+21, sy, 7)
+        print(hero.potions, wdt+33+24, sy+6, 7)
 
         sx=5
         sy=yy+12
@@ -921,7 +976,7 @@ function platforming_state()
         rectfill(sx,sy, sx+wdt, sy+hgt, 8)
         rectfill(sx,sy+1, sx+wdt, sy+hgt-1, 0)
         print("popularity", sx+wdt+2, sy, 8)
-        local p = hero.popularity or 15
+        local p = hero.reputation
         for i=1,p do
             -- draw each life bar
             rectfill(sx,sy+2, sx+1, sy+hgt-2, 7)
