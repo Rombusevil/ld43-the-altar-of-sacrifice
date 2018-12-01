@@ -360,7 +360,7 @@ function platforming_state()
     local drawables={}
     local bullets={}
     s.bullets=bullets
-    local enemies={}
+    local victims={}
     local potions={}
     local cam={x=0, y=0}
     s.cam = cam
@@ -405,7 +405,7 @@ function platforming_state()
         anim_obj:add(5,1,0.01,1,2) 
         anim_obj:add(6,1,0.01,1,2) 
         anim_obj:add(7,1,0.5,2,2,true, function() e.shooting=false end) 
-        e:setpos(x,y)
+        e:setpos(100,y)
         e:set_anim(2) 
         local bounds_obj=bbox(8,16)
         e:set_bounds(bounds_obj)
@@ -424,6 +424,8 @@ function platforming_state()
         e.health=20
         e.dmg=1
         e.finalboss=false
+        e.atacking=false
+        e.dropping=false
         e.potions=0
         e.notifyjumpobj=nil
         e.codes={}
@@ -433,6 +435,9 @@ function platforming_state()
         e.btimer=0
         e.prevsh=-6300
         e.memslots={}
+        e.pickedupvictim=nil
+        e.blockright=false
+        e.blockleft=false
         add(e.memslots,"empty")
         add(e.memslots,"empty")
         add(e.memslots,"empty")
@@ -456,6 +461,15 @@ function platforming_state()
         function e:set_notifyjumpobj(obj)
             self.notifyjumpobj=obj
         end
+        function e:pickup(victim)
+            self.pickedupvictim = victim
+        end
+        function e:doblockright()
+            self.blockright=true
+        end
+        function e:doblockleft()
+            self.blockleft=true
+        end
         function e:controlls()
             self.btimer+=1
             if not self.shooting then
@@ -466,14 +480,16 @@ function platforming_state()
                         self:setx(self.x-self.compensatepx)
                     end
                 end
-                if btn(0) then     
+                if btn(0) and not self.blockleft then     
                     self:setx(self.x-self.speed)
                     self.flipx=true
                     self:set_anim(1) 
-                elseif btn(1) then 
+                    self.blockright=false
+                elseif btn(1) and not self.blockright then 
                     self:setx(self.x+self.speed)
                     self.flipx=false
                     self:set_anim(1) 
+                    self.blockleft=false
                 else
                     self:set_anim(2) 
                 end
@@ -490,22 +506,29 @@ function platforming_state()
                     self:set_anim(3) 
                 end
                 if btnp(5) then 
-                    if(self.btimer-self.prevsh < 10) return 
-                    self.prevsh=self.btimer
-                    sfx(0)
-                    self.shooting=true
-                    self.wasshooting=true
-                    self:set_anim(4) 
-                    local dir=1     
-                    if self.flipx then
-                        dir=-1      
-                        self.compensate=true
-                        self:setx(self.x+self.compensatepx)
-                        self.bounds.xoff1+=8
-                        self.bounds.xoff2+=8
+                    if self.pickedupvictim == nil then 
+                        self.dropping = false
+                        self.atacking = true
+                        if(self.btimer-self.prevsh < 5) return 
+                        self.prevsh=self.btimer
+                        sfx(0)
+                        self.shooting=true
+                        self.wasshooting=true
+                        self:set_anim(4) 
+                        local dir=1     
+                        if self.flipx then
+                            dir=-1      
+                            self.compensate=true
+                            self:setx(self.x+self.compensatepx)
+                            self.bounds.xoff1+=8
+                            self.bounds.xoff2+=8
+                        end
+                    else
+                        self.dropping = true
                     end
-                    local b=bullet(self.x+4, self.y+4, dir, self.bulletspd, bullets, self.dmg)
-                    add(bullets, b)
+                else
+                    self.atacking = false
+                    self.dropping = false
                 end
             end
         end
@@ -523,6 +546,10 @@ function platforming_state()
             if self.y > self.floory then
                 self:sety(self.floory)
                 self.grounded=true
+            end
+            if self.pickedupvictim ~=nil then
+                self.pickedupvictim:setx(self.x-4)
+                self.pickedupvictim:sety(self.y-8)
             end
         end
         function e:reset()
@@ -608,18 +635,33 @@ function platforming_state()
     function victim(x,y)
         local anim_obj=anim()
         local spr=40
+        if (flr(rnd(2)+1)%2==0) spr+=04
         anim_obj:add(spr,1,0.1,1,2) 
         anim_obj:add(spr+8,2,0.9,1,2) 
+        anim_obj:add(spr+32,1,0.9,2,1) 
+        anim_obj:add(86,4,0.7,1,1) 
         local e=entity(anim_obj)
         e:setpos(x,y)
         e:set_anim(1)
+        e.health = 3
         local bounds_obj=bbox(8,8)
         e:set_bounds(bounds_obj)
+        function e:hurt(attacker)
+            self.health -=1
+            self:flicker(0.2)
+            if self.health <= 0 then
+                attacker:pickup(self)
+                self:set_anim(3) 
+            end
+        end
+        function e:sacrifice()
+            self:set_anim(4)
+        end
         function e:update()
         end
         return e
     end
-    function npccreator(parent,houses,hero,potioncreator)
+    function npccreator(parent,houses,potioncreator)
         local e={}
         e.ticks=1
         e.threshold=2
@@ -638,7 +680,7 @@ function platforming_state()
                 local idx = flr(rnd(#houses-1)+1)
                 local house = houses[idx]
                 local rndx = rnd(10)
-                local v = victim(house.x-rndx, hero.y)
+                local v = victim(house.x-rndx,70)
                 for b in all(parent) do
                     if collides(b, v) then 
                         v.y += rnd(3)
@@ -651,15 +693,47 @@ function platforming_state()
         end
         return e
     end
-    function stopper(x,y)
+    function boulderrain(parent,hero)
+        local e={}
+        e.ticks=1
+        e.threshold=2
+        e.lastpos={}
+        e.lastpos.x = 60
+        e.lastpos.y = 70
+        e.timetick=0
+        e.timethreshold=100
+        function e:tick(pos)
+            self.ticks+=1
+            self.lastpos.x=pos.x
+        end
+        function e:update()
+            self.timetick+=1
+            if self.timetick > self.timethreshold then
+                for i=1,15 do
+                end
+                self.timetick=0
+            end
+        end
+        return e
+    end
+    function stopper(x,y,hero)
         local anim_obj=anim()
         anim_obj:add(74,1,0.01,1,1)
         local e=entity(anim_obj)
         e:setpos(x,y)
         e:set_anim(1)
-        local bounds_obj=bbox(8,8)
+        local bounds_obj=bbox(8,128,0,-128)
         e:set_bounds(bounds_obj)
         function e:update()
+            if collides(hero,self) then
+                if self.flipx then
+                    printh("parando right")
+                    hero:doblockright()
+                else
+                    printh("parando left")
+                    hero:doblockleft()
+                end
+            end
         end
         return e
     end
@@ -675,7 +749,7 @@ function platforming_state()
         end
         return e
     end
-    function mapbuild(l,hero,this_state,houses)
+    function mapbuild(l,hero,this_state,houses,stand)
         local xx=128    
         local hy=44     
         local fx=xx+((l.hs+l.hw)*3)-64 
@@ -703,7 +777,8 @@ function platforming_state()
             end
         end
         sf()
-        add(drawables, sacrificestand(hero.x+20, hero.y))
+        stand.val = sacrificestand(hero.x+20, hero.y)
+        add(drawables, stand.val)
         for i=1,l.hcnt do
             local ho = house(xx,hy,hero)
             add(drawables, ho)
@@ -712,20 +787,23 @@ function platforming_state()
             xx+=l.hw+l.hs       
             if(i==3) xx+=l.fw   
         end
-        local stoppery=70
-        local sright= stopper(64,stoppery)
-        local sleft = stopper(l.w-68,stoppery)
+        local stoppery=82
+        local sright= stopper(64,stoppery, hero)
+        local sleft = stopper(l.w-68,stoppery, hero)
         sleft.flipx=true
         add(drawables, sleft)
         add(drawables, sright)
+        add(updateables, sleft)
+        add(updateables, sright)
     end
     local hero = hero(400,70, bullets, s)
     s.hero = hero
     local pc = potioncreator(potions)
     add(updateables, pc)
     local houses = {}
-    mapbuild(level, hero, s, houses)
-    local ec = npccreator(enemies, houses, hero,pc)
+    local stand = {}
+    mapbuild(level, hero, s, houses,stand)
+    local ec = npccreator(victims, houses,pc)
     add(updateables, ec)
     add(updateables, hero)
     add(drawables, hero)
@@ -743,8 +821,18 @@ function platforming_state()
         for u in all(updateables) do
             u:update()
         end
-        for e in all(enemies) do
-            e:update()
+        for v in all(victims) do
+            if hero.atacking and collides(v, hero) then
+                v:hurt(hero)
+            end
+            v:update()
+        end
+        if hero.dropping and collides(stand.val, hero) then
+            local v = hero.pickedupvictim
+            hero.pickedupvictim=nil
+            v.x = stand.val.x+4
+            v.y = stand.val.y-3
+            v:sacrifice()
         end
         for p in all(potions) do
             if collides(p, hero) then
@@ -770,7 +858,7 @@ function platforming_state()
         for b in all(bullets) do
             b:draw()
         end
-        for e in all(enemies) do
+        for e in all(victims) do
             e:draw()
         end
         for p in all(potions) do
