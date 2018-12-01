@@ -210,6 +210,45 @@ function point_collides(x,y, ent)
     end
     return false
 end
+function circle_explo(drawable,updateable)
+	local ex={}
+	ex.circles={}
+	ex.started=false
+	function ex:explode(x,y)
+		ex.started=true
+		add(self.circles,{x=x,y=y,t=0,s=2})
+	end
+	function ex:multiexplode(x,y)
+		ex.started=true
+		local time=0
+		add(self.circles,{x=x,y=y,t=time,s=rnd(2)+1 }) time-=2
+		add(self.circles,{x=x+7,y=y-3,t=time,s=rnd(2)+1}) time-=2
+		add(self.circles,{x=x-7,y=y+3,t=time,s=rnd(2)+1}) time-=2
+		add(self.circles,{x=x,y=y,t=time,s=rnd(2)+1}) time-=2
+		add(self.circles,{x=x+7,y=y+3,t=time,s=rnd(2)+1}) time-=2
+		add(self.circles,{x=x-7,y=y-3,t=time,s=rnd(2)+1}) time-=2
+		add(self.circles,{x=x,y=y,t=time,s=rnd(2)+1}) time-=2
+	end
+	function ex:update()
+		printh("updating explo")
+		if ex.started and #self.circles == 0 then
+			del(drawable, self)
+			del(updateable, self)
+		end
+		for ex in all(self.circles) do
+			ex.t+=ex.s
+			if ex.t >= 20 then
+				del(self.circles, ex)
+			end
+		end
+	end
+	function ex:draw()
+		for ex in all(self.circles) do
+			circ(ex.x,ex.y,ex.t/2,8+ex.t%3)
+		end
+	end
+	return ex
+end
 
 local tick_dance=0
 local step_dance=0
@@ -405,7 +444,7 @@ function platforming_state()
         anim_obj:add(5,1,0.01,1,2) 
         anim_obj:add(6,1,0.01,1,2) 
         anim_obj:add(7,1,0.5,2,2,true, function() e.shooting=false end) 
-        e:setpos(100,y)
+        e:setpos(x,y)
         e:set_anim(2) 
         local bounds_obj=bbox(8,16)
         e:set_bounds(bounds_obj)
@@ -587,6 +626,7 @@ function platforming_state()
         local idx=flr(rnd(4))+1
         function e:update()
             if collides(self,self.h) and btnp(2) then 
+                sfx(8)
             end            
         end
         function e:draw()
@@ -693,15 +733,63 @@ function platforming_state()
         end
         return e
     end
-    function boulderrain(parent,hero)
+    function boulderrain(updateables, drawables, boulders,hero)
         local e={}
         e.ticks=1
-        e.threshold=2
+        e.threshold=20
         e.lastpos={}
         e.lastpos.x = 60
         e.lastpos.y = 70
         e.timetick=0
         e.timethreshold=100
+        e.bouldershadow={}
+        function e:newboulder(x,y,spd)
+            local anim_obj=anim()
+            local sprs = {25, 10, 12, 14}
+            local spridx = flr(rnd(3)+1)
+            local w=2
+            local h=2
+            if spridx == 1 then 
+                w=1
+                h=1 
+            end
+            anim_obj:add(sprs[spridx],1,0.01,w,h)
+            local e1=entity(anim_obj)
+            e1:setpos(x,y)
+            e1:set_anim(1)
+            e1.spd = spd
+            local bounds_obj=bbox(w*8,h*8)
+            e1:set_bounds(bounds_obj)
+            function e1:kill()
+                del(updateables, self)
+                del(drawables, self)
+                del(boulders, self)
+                local ex = circle_explo(drawables, updateables)
+                add(drawables, ex)
+                add(updateables, ex)
+                ex:multiexplode(self.x, self.y)
+            end
+            function e1:update()
+                if collides(hero,self) then
+                    hero:hurt(2)
+                    self:kill()
+                    return
+                end
+                if self.y > 77 then
+                    self:kill()
+                    return
+                end
+                self:sety(self.y+self.spd)
+            end
+            e1._draw=e1.draw
+            function e1:draw()
+                local yy = self.y
+                if (yy < 10) yy = 10
+                circfill(self.x+7, 85, self.y*0.08, 0)
+                self:_draw()
+            end
+            return e1
+        end
         function e:tick(pos)
             self.ticks+=1
             self.lastpos.x=pos.x
@@ -709,7 +797,19 @@ function platforming_state()
         function e:update()
             self.timetick+=1
             if self.timetick > self.timethreshold then
-                for i=1,15 do
+                for b in all(boulders) do
+                    del(updateables, b)
+                    del(drawables, b)
+                    del(boulders, b)
+                end
+                for i=1,10 do
+                    local xx = (hero.x-100)+rnd(10)+(i*32)
+                    local yy = -22-rnd(32)+10
+                    local spd = 2+rnd(5)
+                    local b = self:newboulder(xx, yy, spd)
+                    add(boulders, b)
+                    add(updateables, b)
+                    add(drawables, b)
                 end
                 self.timetick=0
             end
@@ -727,10 +827,8 @@ function platforming_state()
         function e:update()
             if collides(hero,self) then
                 if self.flipx then
-                    printh("parando right")
                     hero:doblockright()
                 else
-                    printh("parando left")
                     hero:doblockleft()
                 end
             end
@@ -805,6 +903,9 @@ function platforming_state()
     mapbuild(level, hero, s, houses,stand)
     local ec = npccreator(victims, houses,pc)
     add(updateables, ec)
+    local boulders = {}
+    local brain = boulderrain(updateables, drawables, boulders, hero)
+    add(updateables, brain)
     add(updateables, hero)
     add(drawables, hero)
     s.update=function()
@@ -1012,306 +1113,10 @@ function win_state()
     end
     return s
 end
-function gfight_state(prev_state,plat_state,text,value,final_b)
-    music(2)
-    local s={}
-    local updateables={}
-    local drawables={}
-    local bullets=plat_state.bullets
-    local h=plat_state.hero
-    local hprevpos={x=h.x, y=h.y}
-    local cambkp={x=plat_state.cam.x, y=plat_state.cam.y}
-    local collideborders=true
-    camera(0,0)
-    plat_state.cam.x=0
-    plat_state.cam.y=0
-    h.x=10
-    if(final_b) plat_state.hero.finalboss=true
-    add(updateables,h)
-    add(drawables,h)
-    function miniboss(x,y,ebullets)
-        local anim_obj=anim()
-        local bounds_obj=bbox(16,16)
-        if final_b then
-            anim_obj:add(167,2,0.2,3,3)
-            bounds_obj=bbox(24,24)
-        else
-            anim_obj:add(12,2,0.2,2,2)
-        end
-        local e=entity(anim_obj)
-        e:setpos(x,y)
-        e:set_anim(1)
-        e.health=20
-        if(final_b) e.health=30
-        e:set_bounds(bounds_obj)
-        function e:hurt(dmg)
-            self:flicker(10)
-            self.health-=dmg
-            sfx(11)
-            if self.health <= 0 then
-                if final_b then
-                    curstate=win_state()
-                else
-                    sfx(12)
-                    local mstate=memory_state(prev_state, text, value)
-                    goback(mstate)
-                end
-            end
-        end
-        function bul(x,y, bullets)
-            local anim_obj=anim()
-            anim_obj:add(44,2,0.2,1,1)
-            local e=entity(anim_obj)
-            e:setpos(x,y)
-            e:set_anim(1)
-            local bounds_obj=bbox(8,8,0,0,4,4)
-            e:set_bounds(bounds_obj)
-            e.spd=1.8
-            e.tick=0
-            e.middle=y
-            e.dmg=3
-            function e:update()
-                self.tick+=0.05
-                self:setx(self.x-self.spd)
-                self:sety( sin(self.tick) *10 + self.middle+flr(rnd(3)))
-            end
-            function e:kill()
-                del(bullets,self)
-            end
-            return e
-        end
-        e.tick=0
-        e.bulltick=0
-        function e:update()
-            local spdt=0.01
-            self.tick+=spdt
-            self:sety( sin(self.tick) *20 + 50)
-            if(final_b) self:setx( self.x + sin(self.tick) )
-            if flr(sin(self.tick)) % 2 == 0 then
-                if self.bulltick < 100  then
-                    self.bulltick+=0.5
-                    if(self.bulltick % 10 == 0) add(ebullets, bul(self.x, self.y, ebullets)) sfx(10)
-                end
-            else
-                self.bulltick=0
-            end
-        end
-        return e
-    end
-    function goback(prev_state)
-        collideborders=false
-        plat_state.cam.x=cambkp.x
-        plat_state.cam.y=cambkp.y
-        plat_state.hero:setx(hprevpos.x)
-        plat_state.hero:sety(hprevpos.y)
-        curstate=prev_state
-    end
-    local ebullets={}
-    local xx=109
-    if(final_b) xx=105
-    local ghost=miniboss(xx, 60, ebullets)
-    add(updateables, ghost)
-    add(drawables, ghost)
-    s.update=function()
-        for u in all(updateables) do
-            u:update()
-        end
-        plat_state.updateblts(bullets, {ghost}, false)
-        plat_state.updateblts(ebullets, {h}, false)
-        if(collides(h,ghost)) h:hurt(6)
-        if(not collideborders) return
-        if(h.x < 1) h:setx(1)
-        if(h.x >118) h:setx(118)
-    end
-    s.draw=function()
-        cls()
-        fillp(0b0000001010000000)
-        rectfill(0,0,127,127, 13) 
-        fillp(0)
-        rectfill(0,70,127,127, 6) 
-        for d in all(drawables) do
-            d:draw()
-        end
-        for d in all(bullets) do
-            d:draw()
-        end
-        for d in all(ebullets) do
-            d:draw()
-        end
-        plat_state.drawhud()
-        local xx=44
-        rectfill(xx,25,  xx+(ghost.health*2),28, 9)
-        rectfill(xx,26,  xx+(ghost.health*2),27, 8)
-    end
-    return s
-end
-function memory_state(plat_state, msg, value)
-    music(1)
-    local s={}
-    local ents={}
-    local h=plat_state.hero
-    local timeout=0
-    function arrow()
-        local e={}
-        e.positions={}
-        add(e.positions, {x=20  -2, y=88}) 
-        add(e.positions, {x=49  -2, y=88}) 
-        add(e.positions, {x=78  -2, y=88}) 
-        add(e.positions, {x=107 -2, y=88}) 
-        e.posidx=1
-        function e:update()
-            if btnp(0) and self.posidx > 1 then     
-                self.posidx-=1
-                sfx(3)
-            elseif btnp(1) and self.posidx <= #self.positions-1 then 
-                self.posidx+=1
-                sfx(3)
-            end
-        end
-        function e:draw()
-            local p=self.positions[self.posidx]
-            spr(10, p.x, p.y)
-        end
-        return e
-    end
-    camera(0,0)
-    local txt={}
-    add(txt, tutils({text=msg,centerx=false, x=20,y=8,fg=7,bg=0,bordered=false,shadowed=true,sh=2}))
-    local yy=40
-    add(txt, tutils({text="would you like to save this",centerx=true,y=yy,fg=7,bg=0})) yy+=8
-    add(txt, tutils({text="memory?",centerx=true,y=yy,fg=7,bg=0}))
-    local pressx=tutils({text="❎ to choose", blink=true, on_time=15, centerx=true,y=110,fg=7,bg=1,shadowed=true, sh=6})
-    local arrchoose=tutils({text="arrows to choose", blink=true, on_time=15, centerx=true,y=110,fg=7,bg=1,shadowed=true, sh=6})
-    local memorized=tutils({text="memorized!",centerx=true,centery=true,fg=7,bg=13, bordered=true})
-    local overwrite=tutils({text="overwrite memory?",centerx=true,y=50,fg=7,bg=13, bordered=true})
-    local ar=arrow(20, 86)
-    add(ents, ar)
-    local valuestored=false
-    local valueoverwrite=false
-    local tick=0
-    local pendingval=""
-    local fuse=true
-    s.update=function()
-        if(valuestored or valueoverwrite) return
-        timeout+=1
-        for u in all(ents) do
-            u:update()
-        end
-        if timeout > 30 and (btnp(4) or btnp(5)) then 
-            sfx(5)
-            if(ar.posidx==4) curstate=plat_state return 
-            if h.memslots[ar.posidx] == "empty" then
-                h.memslots[ar.posidx] = value
-                valuestored=true
-            else
-                pendingval=value
-                valueoverwrite=true
-            end
-        end
-        if timeout > 30 and fuse then
-            fuse=false
-            add(txt, pressx)
-        end
-    end
-    s.draw=function()
-        cls()
-        rectfill(0,0,127,127, 1)
-        if not valuestored and not valueoverwrite then
-            local sx = 10
-            local yy = 60
-            local tw = 24 
-            local sp = 5  
-            for i=1,4 do
-                local slottxt="slot "..i;
-                local c=5
-                local to=0 
-                if(h.memslots[i] != "empty") c=8 
-                if i == 4 then
-                    slottxt="no"
-                    c=6
-                    to=8
-                end
-                rectfill(sx,yy, sx+tw, yy+tw, c)
-                print(slottxt, sx+1+to, yy+8, 7)
-                sx+=tw+sp
-            end
-            for d in all(ents) do
-                d:draw()
-            end
-            for d in all(txt) do
-                d:draw()
-            end
-        elseif valuestored then
-            memorized:draw()
-            tick+=1
-            if(tick > 30) curstate=plat_state
-        elseif valueoverwrite then
-            overwrite:draw()
-            arrchoose:draw()
-            spr(27, 15,64) 
-            spr(11, 104,64) 
-            print("yes              no",25,65,7)
-            if btnp(0) then 
-                sfx(5)
-                valueoverwrite=false
-                valuestored=true
-                h.memslots[ar.posidx] = pendingval
-            elseif btnp(1) then 
-                sfx(5)
-                valueoverwrite=false
-            end
-        end
-    end
-    return s
-end
+-- <*gfight_state.lua
+-- <*memory_state.lua 
 
-function vertigo_state(prev_state, plat_state)
-    music(-1)
-    local s={}
-    local ctr=0
-    local prevctr=0
-    local pat1=0b0001000000000000
-    local pat2=0b1111110111111111
-    local pat=pat1
-    camera(0,0)
-    sfx(9)
-    local texts={}
-    local yy=2
-    add(texts,tutils({text="you're back billy!",    centerx=true, y=yy, fg=7, bg=2, sh=3, shadowed=true}))yy+=10
-    add(texts,tutils({text="i've killed you once",  centerx=true, y=yy, fg=7, bg=2, sh=3, shadowed=true}))yy+=10
-    add(texts,tutils({text="i'll kill you twice!!", centerx=true, y=yy, fg=7, bg=2, sh=3, shadowed=true}))yy+=10
-    local text=tutils({text="press ❎ to fight", centerx=true, y=110, fg=7, bg=2, sh=3, shadowed=true})
-    s.update=function()
-        ctr+=0.1
-        if( (flr(ctr)%3)==0 )then
-            if ctr-prevctr > 1 then
-                if pat==pat1 then
-                    pat=pat2
-                else
-                    pat=pat1
-                end
-            end
-            prevctr=ctr
-        end
-        if ctr > 2 then
-            if(btn(5)) curstate=gfight_state(prev_state, plat_state,"","",true) 
-        end
-    end
-    s.draw=function()
-        cls()
-        local width = sin(ctr)*20+50
-        local height= sin(ctr)*20+50
-        fillp(pat)
-        rectfill(0,0,127,127,2)
-        fillp()
-        sspr(0,8, 8,8, 64-(width/2),64-(height/2), width, height)
-        for t in all(texts) do
-            t:draw()
-        end
-        if(ctr > 2) text:draw()
-    end
-    return s
-end
+-- <*vertigo_state.lua
 --------------------------- end imports
 
 -- to enable mouse support uncomment all of the following commented lines:
@@ -1386,12 +1191,12 @@ fff95fff1f1001f1001f100001ff11ff001f100000001f10000000001f1001f10000000001100000
 66666660000000000000000000666666600000000000000005865d0600800880000a000000000000000000000000000000000000000000000000000000000000
 40000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0400000eeee000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-40eeeeee1e1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0eeeeeeeeeee00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0eeeeeeeeeee00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0eeeeeeeee0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00eeeeeee00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00e040e0400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+40eeeeee1e1000000000000000007777070000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0eeeeeeeeeee00000000000000007777770000000007700000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0eeeeeeeeeee00000000000000777777770777000777777000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0eeeeeeeee0000000000000000777777777777007777777700000000000000000000000000000000000000000000000000000000000000000000000000000000
+00eeeeeee00000000000000007777777777777000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00e040e0400000000000000077777777777777770000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000000011bb110000000000000000000000000000000000000000000000000000000000000000000011110000000000000000000000000000000000000000000
 0000001bbbbbb1110000000000000000000000000000000000000000000000000000000000000000266661200000000000000000000000000000000000000000
 000001b33a33bbbb100000000000000000100000000000000000000000000000000000002000600066fff1000000000000000000000000000000000000000000

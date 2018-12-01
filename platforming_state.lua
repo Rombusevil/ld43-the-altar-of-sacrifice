@@ -299,8 +299,9 @@ function platforming_state()
                 -- *************
                 --  enter house
                 -- *************
-                -- sfx(8)
-                -- curstate=gfight_state(s, s, self.housemsg.msg, self.housemsg.value)
+                sfx(8)
+                -- todo: add shopstate
+                --curstate=shop_state()
             end            
         end
         
@@ -335,70 +336,7 @@ function platforming_state()
     
         return e
     end
-
-    --function priest(x,y,hero,enemies,potioncreator)
-    --    local anim_obj=anim()
-    --    local e=entity(anim_obj)
-    --    
-    --    y=y+8
-    --    anim_obj:add(119,4,0.2,1,1,true,function() e:set_anim(2) e:sety(e.y-8) e.justborn=10 sfx(7) end)     -- spawn
-    --    anim_obj:add(86,4,0.2,2,2) -- walk
-    --    anim_obj:add(135,6,0.3,1,2,true,function() del(enemies, e) end) -- die
-
-    --    e:setpos(x,y)
-    --    e:set_anim(1)
-    --    e.spd=0.8
-    --    e.justborn=-1 -- throwing a timing before chasing hero after spawn
-    --    e.born=false
-    --    e.dying=false
-    --    e.prevflipx=false
-    --    e.dmg=1
-  
-    --    local bounds_obj=bbox(8,8)
-    --    e:set_bounds(bounds_obj)
-    --    -- e.debugbounds=true
-
-    --    sfx(1)
-    --
-    --    function e:update()
-    --        if(self.dying) return
-
-    --        if self.born then
-    --            if self.x > hero.x + 1 then
-    --                if(not self.prevflipx) self:setx(self.x-8)
-    --                self.prevflipx=true
-    --                self.flipx=true
-    --                self:setx(self.x-self.spd)
-    --            elseif self.x < hero.x-8 then
-    --                self.prevflipx=false
-    --                self.flipx=false
-    --                self:setx(self.x+self.spd)
-    --            else
-    --                hero:hurt(self.dmg)
-    --            end
-    --        elseif self.justborn != -1 then
-    --            -- enters here when spawning anim is done
-    --            if self.justborn > 0 then
-    --                self.justborn-=1
-    --            end
-
-    --            if self.justborn == 0 then
-    --                self.born = true
-    --            end
-    --        end
-    --    end
-
-    --    function e:hurt(dmg)
-    --        self.dying = true
-    --        if(self.flipx) self:setx(self.x+8) -- compensate width change
-    --        self:set_anim(3) --die
-    --        potioncreator:tick({x=self.x, y=self.y})
-    --        sfx(6)
-    --    end
-
-    --    return e
-    --end
-
+ 
     -- the potioncreator creates a potion every threshold kills of enemies
     function potioncreator(potions)
         local p={}
@@ -537,18 +475,76 @@ function platforming_state()
         return e
     end
 
-    function boulderrain(parent,hero)
+    function boulderrain(updateables, drawables, boulders,hero)
         local e={}
 
         e.ticks=1
-        e.threshold=2
+        e.threshold=20
         e.lastpos={}
         e.lastpos.x = 60
         e.lastpos.y = 70
 
         e.timetick=0
         e.timethreshold=100
+        e.bouldershadow={}
+        function e:newboulder(x,y,spd)
+            local anim_obj=anim()
+            -- spr: 10,12,14
+            local sprs = {25, 10, 12, 14}
+            local spridx = flr(rnd(3)+1)
+            local w=2
+            local h=2
+            if spridx == 1 then 
+                w=1
+                h=1 
+            end
+            anim_obj:add(sprs[spridx],1,0.01,w,h)
+        
+            local e1=entity(anim_obj)
+            e1:setpos(x,y)
+            e1:set_anim(1)
+            e1.spd = spd
+        
+            local bounds_obj=bbox(w*8,h*8)
+            e1:set_bounds(bounds_obj)
+            --e1.debugbounds=true
 
+            function e1:kill()
+                del(updateables, self)
+                del(drawables, self)
+                del(boulders, self)
+                local ex = circle_explo(drawables, updateables)
+                add(drawables, ex)
+                add(updateables, ex)
+                ex:multiexplode(self.x, self.y)
+            end
+        
+            function e1:update()
+                if collides(hero,self) then
+                    hero:hurt(2)
+                    self:kill()
+                    return
+                end
+                
+                if self.y > 77 then
+                    self:kill()
+                    return
+                end
+
+                self:sety(self.y+self.spd)
+            end
+       
+            -- overwrite entity's draw() function
+            e1._draw=e1.draw
+            function e1:draw()
+                local yy = self.y
+                if (yy < 10) yy = 10
+                circfill(self.x+7, 85, self.y*0.08, 0)
+                self:_draw()
+            end
+            return e1
+        end
+        
         function e:tick(pos)
             self.ticks+=1
             self.lastpos.x=pos.x
@@ -559,12 +555,22 @@ function platforming_state()
             self.timetick+=1
 
             if self.timetick > self.timethreshold then
-                for i=1,15 do
-                    -- todo: hacer func boulder()
-                    -- todo: borrar las boulders viejas
-                    -- todo: eliminar las victims muertas
-                    -- add(parent, )
+                for b in all(boulders) do
+                    del(updateables, b)
+                    del(drawables, b)
+                    del(boulders, b)
                 end
+
+                for i=1,10 do
+                    local xx = (hero.x-100)+rnd(10)+(i*32)
+                    local yy = -22-rnd(32)+10
+                    local spd = 2+rnd(5)
+                    local b = self:newboulder(xx, yy, spd)
+                    add(boulders, b)
+                    add(updateables, b)
+                    add(drawables, b)
+                end
+                
                 self.timetick=0
             end
         end
@@ -586,10 +592,8 @@ function platforming_state()
         function e:update()
             if collides(hero,self) then
                 if self.flipx then
-                    printh("parando right")
                     hero:doblockright()
                 else
-                    printh("parando left")
                     hero:doblockleft()
                 end
             end
@@ -714,6 +718,13 @@ function platforming_state()
     -- cuando salta hace algo
     -- hero:set_notifyjumpobj(ec)
     
+    local boulders = {}
+    local brain = boulderrain(updateables, drawables, boulders, hero)
+    add(updateables, brain)
+    -- add(updateables, boulders)
+    --add(drawables, boulders)
+
+
     add(updateables, hero)
     add(drawables, hero)
 

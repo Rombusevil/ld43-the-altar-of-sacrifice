@@ -7,6 +7,7 @@ __lua__
 --<*sff/entity.lua
 --<*sff/tutils.lua
 --<*sff/collision.lua
+--<*sff/explosions.lua
 
 --<*visual.lua
 --<*menu_state.lua
@@ -14,10 +15,10 @@ __lua__
 --<*platforming_state.lua
 --<*gameover_state.lua
 --<*win_state.lua
---<*gfight_state.lua
---<*memory_state.lua 
+-- <*gfight_state.lua
+-- <*memory_state.lua 
 
---<*vertigo_state.lua
+-- <*vertigo_state.lua
 --------------------------- end imports
 
 -- to enable mouse support uncomment all of the following commented lines:
