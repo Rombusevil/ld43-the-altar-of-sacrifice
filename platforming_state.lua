@@ -410,9 +410,9 @@ function platforming_state()
             del(victims, e)
         end) -- explode
     
-        local bounds_obj=bbox(8,8)
+        local bounds_obj=bbox(8,16)
         e:set_bounds(bounds_obj)
-        -- e.debugbounds=true
+        --e.debugbounds=true
     
         function e:hurt(attacker)
             self.health -=1
@@ -494,8 +494,8 @@ function platforming_state()
                 local v = victim(house.x-rndx,70,hero, updateables,drawables,parent)
                 for b in all(parent) do
                     if collides(b, v) then 
-                        v.y += rnd(3)
-                        v.x += rnd(6)*16
+                        v:sety(v.y+rnd(3))
+                        v:setx(v.x+rnd(6)*16)
                     end
                 end
 
@@ -517,7 +517,7 @@ function platforming_state()
         e.lastpos.y = 70
 
         e.timetick=0
-        e.timethreshold=100
+        e.timethreshold=250
         e.bouldershadow={}
         function e:newboulder(x,y,spd)
             local anim_obj=anim()
@@ -570,8 +570,8 @@ function platforming_state()
             e1._draw=e1.draw
             function e1:draw()
                 local yy = self.y
-                if (yy < 10) yy = 10
-                circfill(self.x+7, 85, self.y*0.08, 0)
+                if (yy < 20) yy = 20
+                circfill(self.x+7, 85, yy*0.08, 0)
                 self:_draw()
             end
             return e1
@@ -595,7 +595,7 @@ function platforming_state()
 
                 for i=1,10 do
                     local xx = (hero.x-200)+rnd(50)+10+(i*64)
-                    local yy = -100-rnd(100)
+                    local yy = -150-rnd(100)
                     local spd = 4+rnd(2)
                     local b = self:newboulder(xx, yy, spd)
                     add(boulders, b)
@@ -861,9 +861,11 @@ function platforming_state()
             u:update()
         end
 
+        local keepgoing=true
         for v in all(victims) do
-            if hero.atacking and collides(v, hero) then
+            if keepgoing and hero.atacking and collides(v, hero) then
                 v:hurt(hero)
+                keepgoing=false
             end
             v:update()
         end

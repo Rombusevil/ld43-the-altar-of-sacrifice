@@ -1,5 +1,5 @@
 -- state
-function gameover_state(prev_state)
+function gameover_state()
     local s={}
     local texts={}
     local timeout=2 -- for avoiding the user hitting X while playing and by that dismissing this screen. In seconds
@@ -25,7 +25,7 @@ function gameover_state(prev_state)
 
     s.update=function()
         timeout -= 1/60
-        if(btnp(5) and timeout <= 0) curstate=prev_state-- "X"
+        if(btnp(5) and timeout <= 0) curstate=menu_state()-- "X"
     end
 
     cls()
