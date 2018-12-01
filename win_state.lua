@@ -3,7 +3,7 @@ function win_state()
     music(-1)
     local s={}
     local texts={}
-    local timeout=2 -- for avoiding the user hitting X while playing and by that dismissing this screen. In seconds
+    local timeout=2 -- for avoiding the user hitting x while playing and by that dismissing this screen. in seconds
 
     -- graphical frame 
     local frbkg=11
@@ -28,7 +28,7 @@ function win_state()
 
     s.update=function()
         timeout -= 1/60
-        if(btnp(5) and timeout <= 0) curstate=menu_state() -- "X"
+        if(btnp(5) and timeout <= 0) curstate=menu_state() -- "x"
     end
 
     cls()

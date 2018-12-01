@@ -3,7 +3,7 @@ function vertigo_state(prev_state, plat_state)
     music(-1)
     local s={}
     local ctr=0
-    local prevCtr=0
+    local prevctr=0
 
     local pat1=0b0001000000000000
     local pat2=0b1111110111111111
@@ -24,7 +24,7 @@ function vertigo_state(prev_state, plat_state)
         ctr+=0.1
         if( (flr(ctr)%3)==0 )then
             -- prevent insane flashing
-            if ctr-prevCtr > 1 then
+            if ctr-prevctr > 1 then
                 if pat==pat1 then
                     pat=pat2
                 else
@@ -32,7 +32,7 @@ function vertigo_state(prev_state, plat_state)
                 end
             end
 
-            prevCtr=ctr
+            prevctr=ctr
         end
 
         if ctr > 2 then

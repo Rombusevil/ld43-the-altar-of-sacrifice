@@ -5,7 +5,6 @@ function platforming_state()
     local updateables={}
     local drawables={}
     local bullets={}
-    local guards={}
     s.bullets=bullets
     local enemies={}
     local potions={}
@@ -27,13 +26,6 @@ function platforming_state()
 
     local deferpos=false
     local pendingmusic=false
-
-    local cabinmsgs={}
-    add(cabinmsgs, {used=false, value="eastpass", msg="this password get's you\ninto east city."})
-    add(cabinmsgs, {used=false, value="exitpass", msg="this password get's you\nout of this city."})
-    add(cabinmsgs, {used=false, value="easthint", msg="to find your murderer\ngo east."})
-    add(cabinmsgs, {used=false, value="westhint", msg="to find your murderer\ngo west."})
-    add(cabinmsgs, {used=false, value="westpass", msg="this password get's you\ninto west city."})
 
     function bullet(x,y, dir, spd, bullets, dmg)
         local e=entity({})
@@ -99,7 +91,7 @@ function platforming_state()
         e.finalboss=false
         
         e.potions=0
-        e.notifyjumpobj={}
+        e.notifyjumpobj=nil
 
         -- this vars are loaded in the vertigo_state
         e.codes={}
@@ -134,7 +126,6 @@ function platforming_state()
             end
         end
 
-        -- every x jumps the obj spawns a new enemy
         function e:set_notifyjumpobj(obj)
             self.notifyjumpobj=obj
         end
@@ -162,12 +153,15 @@ function platforming_state()
                     self:set_anim(2) --idle
                 end
                 
-                -- the up button is taken care on the cabin entity
+                -- the up button is taken care on the house entity
                 
-                if btnp(4) and self.grounded then -- "O"
+                if btnp(4) and self.grounded then -- "o"
                     -- jump
                     sfx(4)
-                    self.notifyjumpobj:tick({x=self.x, y=self.y})
+                    if self.notifyjumpobj ~= nil then
+                        self.notifyjumpobj:tick({x=self.x, y=self.y})
+                    end
+
                     self.grav = -self.jumppw
                     self:sety(self.y + self.grav)
                     self.grounded=false
@@ -176,7 +170,7 @@ function platforming_state()
                     self:set_anim(3) --jump
                 end
                 
-                if btnp(5) then -- "X"
+                if btnp(5) then -- "x"
                     -- shoot
                     if(self.btimer-self.prevsh < 10) return -- don't allow shooting like machine gun
                     self.prevsh=self.btimer
@@ -245,13 +239,6 @@ function platforming_state()
             self.codes.dir='none'
             self.codes.exit=false
             self.codes.dircode='none'
-
-            -- make it so that if you loose you don't loose your memory
-            -- self.memslots={}
-            -- add(self.memslots,"empty")
-            -- add(self.memslots,"empty")
-            -- add(self.memslots,"empty")
-
             
             if self.finalboss then
                 self.finalboss=false
@@ -263,7 +250,7 @@ function platforming_state()
         return e
     end
 
-    function cabin(x,y, hero)
+    function house(x,y, hero)
         local e=entity({})
         e:setpos(x,y)
         
@@ -273,83 +260,22 @@ function platforming_state()
         e.h = hero
 
         local idx=flr(rnd(4))+1
-        if cabinmsgs[idx].used then
-            for i=1,5 do
-                if(not cabinmsgs[i].used) idx=i break
-            end
-        end
-        cabinmsgs[idx].used=true
-        e.cabinmsg=cabinmsgs[idx]
-
 
         function e:update()
             if collides(self,self.h) and btnp(2) then -- up btn
                 -- *************
-                --  enter cabin
+                --  enter house
                 -- *************
-                sfx(8)
-                -- sorry bro, the pseudo 3d state has to be taken out due to high token consumption D:
-                -- curstate=cabin_state(s)
-                
-                curstate=gfight_state(s, s, self.cabinmsg.msg, self.cabinmsg.value)
+                -- sfx(8)
+                -- curstate=gfight_state(s, s, self.housemsg.msg, self.housemsg.value)
             end            
         end
         
         function e:draw()
-            spr(32, x,y, 6, 5)
+            spr(32, x,y, 6, 4)
             -- if(self.debugbounds) self.bounds:printbounds()
         end
 
-        return e
-    end
-
-    -- dir = west, east, north, south
-    function guard(x,y,hero,dir)
-        local anim_obj=anim()
-        anim_obj:add(38,1,0.01,1,2) -- idle
-        anim_obj:add(39,1,0.01,1,2) -- blocking
-        anim_obj:add(40,1,0.01,1,2) -- allowing
-    
-        local e=entity(anim_obj)
-        e:setpos(x,y)
-        e:set_anim(1)
-        e.sfxfuse=true
-    
-        local bounds_obj=bbox(16,16, 0,-30,0,0)
-        if(x > 300) bounds_obj=bbox(16,16, -8,-30,8,0)
-        e:set_bounds(bounds_obj)
-        -- e.debugbounds=true
-    
-        function e:update()
-            if collides(self, hero) then
-                local exitcity=false
-                local dirpass=false
-                local hint=false
-
-                local thispass=dir..'pass'
-                local dirhint=dir..'hint'
-                for m in all(hero.memslots) do
-                    if(m == 'exitpass') exitcity=true
-                    if(m == thispass)   dirpass=true
-                    if(m == dirhint)    hint=true
-                end
-
-                if(exitcity and dirpass and hint) self:set_anim(3) return -- you shall pass
-
-                -- block hero movement
-                if(self.x < 200 and hero.x < self.x+16) hero:setx(self.x+16)
-                if(self.x > 200 and hero.x > self.x-16) hero:setx(self.x-16)
-
-                if(self.sfxfuse) sfx(6) self.sfxfuse=false
-                if(not hint)    self:set_anim(2) showmsg=true showmsgtxt="I'LL ONLY LEAVE WITH A HINT\nOF MY MURDERED BEING THERE" return
-                if(not exitcity)self:set_anim(2) showmsg=true showmsgtxt="YOU DON'T HAVE THE PASSWORD\nTO LEAVE" return
-                if(not dirpass) self:set_anim(2) showmsg=true showmsgtxt="YOU DON'T HAVE THE PASSWORD\nTO ENTER THIS CITY" return
-            else
-                self:set_anim(1) --idle
-                self.sfxfuse=true
-            end
-        end
-        
         return e
     end
 
@@ -488,39 +414,91 @@ function platforming_state()
         function e:update()
             self.timetick+=1
 
-            local cenemy = false
-            if self.timetick > self.timethreshold and hero.x > 130 then
-                local side=1
-                if(flr(rnd(2))%2==0) side=-1
-                self.lastpos.x = hero.x + ((flr(rnd(4))+16) *side)
-                
-                self.timetick=0
-                cenemy = true
-            end
+            -- local cenemy = false
+            -- if self.timetick > self.timethreshold and hero.x > 130 then
+            --     local side=1
+            --     if(flr(rnd(2))%2==0) side=-1
+            --     self.lastpos.x = hero.x + ((flr(rnd(4))+16) *side)
+            --     
+            --     self.timetick=0
+            --     cenemy = true
+            -- end
+ 
+            -- local jenemy=false
+            -- if self.ticks >= self.threshold then 
+            --     self.ticks=0
+            --     self.timetick+=10
+            --     jenemy=true
+            -- end
 
-            local jenemy=false
-            if self.ticks >= self.threshold then 
-                self.ticks=0
-                self.timetick+=10
-                jenemy=true
-            end
-
-            if  jenemy or cenemy then
-                local e=priest(self.lastpos.x, self.lastpos.y, hero, enemies,potioncreator)
-                add(enemies, e)
-            end
+            -- if  jenemy or cenemy then
+            --     local e=priest(self.lastpos.x, self.lastpos.y, hero, enemies,potioncreator)
+            --     add(enemies, e)
+            -- end
         end
 
         return e
     end
+
+    function stopper(x,y)
+        local anim_obj=anim()
+        anim_obj:add(74,1,0.01,1,1)
     
+        local e=entity(anim_obj)
+        e:setpos(x,y)
+        e:set_anim(1)
+    
+        local bounds_obj=bbox(8,8)
+        e:set_bounds(bounds_obj)
+        -- e.debugbounds=true
+    
+        function e:update()
+        end
+    
+        -- overwrite entity's draw() function
+        -- e._draw=e.draw
+        -- function e:draw()
+        --     self:_draw()
+        --     ** your code here **
+        -- end
+    
+        return e
+    end
+
+    function sacrificestand(x,y)
+        local anim_obj=anim()
+        anim_obj:add(38,1,0.01,2,2)
+    
+        local e=entity(anim_obj)
+        e:setpos(x,y)
+        e:set_anim(1)
+    
+        local bounds_obj=bbox(16,16)
+        e:set_bounds(bounds_obj)
+        -- e.debugbounds=true
+    
+        function e:update()
+        end
+    
+        -- overwrite entity's draw() function
+        -- e._draw=e.draw
+        -- function e:draw()
+        --     self:_draw()
+        --     ** your code here **
+        -- end
+    
+        return e
+    end
+
     -- receives a level config as argument
     function mapbuild(l, hero,this_state)
         local xx=128    -- starting x for first house
-        local hy=36     -- house y position (doesn't change)
+        local hy=44     -- house y position (doesn't change)
+        local fx=xx+((l.hs+l.hw)*3)-64 -- forest starting x 
+
 
         -- *************************
-        --      Setup forest
+        --      setup forest
         -- *************************
         function sf()
             function tree(sp, x, y, w, h)
@@ -530,8 +508,6 @@ function platforming_state()
                 end
                 return t
             end
-
-            local fx=xx+((l.hs+l.hw)*3)-64 -- forest starting x    
 
             -- paint pines
             local fe= fx+l.fw-16  -- forest end
@@ -555,11 +531,13 @@ function platforming_state()
         end
         sf()
 
+        add(drawables, sacrificestand(420, hero.y))
+
         -- *************************
-        --      Setup houses
+        --      setup houses
         -- *************************
         for i=1,l.hcnt do
-            local c = cabin(xx,hy,hero)
+            local c = house(xx,hy,hero)
             add(drawables, c)
             add(updateables, c)
             xx+=l.hw+l.hs       -- setup x for the next house
@@ -567,57 +545,14 @@ function platforming_state()
         end
 
         -- *************************
-        --      Setup guards
+        --      setup stoppers
         -- *************************
-        local npcy=70
-
-        -- guard on the left side
-        local g = guard(64, npcy, hero, 'west')
-        local t=teleport(58,npcy-16, hero)
-        add(guards, g)
-        add(updateables, t)
-
-        add(drawables, g)
-        add(updateables, g)
-        
-
-        -- guard on the right side
-        g = guard(l.w-68, npcy, hero, 'east')
-        local t=teleport(l.w-58,npcy-16, hero)
-        add(guards, g)
-        add(updateables, t)
-
-        g.flipx=true
-        add(drawables, g)
-        add(updateables, g)
-
-    end
-
-    function teleport(x,y,hero)
-        local e=entity({})
-        e:setpos(x,y)
-    
-        local bounds_obj=bbox(8,24)
-        e:set_bounds(bounds_obj)
-        e.debugbounds=true
-    
-        function e:update()
-            if collides(self, hero) then
-                for g in all(guards) do
-                    del(updateables, g)
-                    del(drawables, g)
-                    del(guards,g)
-                end
-                curstate=vertigo_state(s,s) 
-                return 
-            end
-        end
-    
-        function e:draw()
-            if(self.debugbounds) self.bounds:printbounds()
-        end
-    
-        return e
+        local stoppery=70
+        local sright= stopper(64,stoppery)
+        local sleft = stopper(l.w-68,stoppery)
+        sleft.flipx=true
+        add(drawables, sleft)
+        add(drawables, sright)
     end
 
     local hero = hero(120,70, bullets, s)
@@ -628,7 +563,8 @@ function platforming_state()
 
     local ec = enemycreator(enemies, hero,pc)
     add(updateables, ec)
-    hero:set_notifyjumpobj(ec)
+    -- cuando salta hace algo
+    -- hero:set_notifyjumpobj(ec)
 
     mapbuild(level, hero, s)
     
@@ -641,7 +577,7 @@ function platforming_state()
         if(pendingmusic) music(1) pendingmusic=false
 
         -- *****************
-        --  Updating camera
+        --  updating camera
         -- *****************
         if not hero.shooting and not hero.wasshooting then
             if hero.flipx then
@@ -682,24 +618,22 @@ function platforming_state()
         cls()
         
         -- *****************
-        --        Level
+        --        level
         -- *****************
         -- sky
         fillp(0)
         rectfill(0,0,level.w,127, 12) 
 
-        -- grass
+        -- sand
         --fillp(0b0000001010000000)
-        rectfill(0,47,level.w,127, 3) 
+        rectfill(0,67,level.w,127, 9) 
         
-        -- land
+        -- gravel
         --fillp(0b0000010000000001)
         rectfill(0,77,level.w,94, 4) 
-
-
         
         -- *****************
-        --      Objects
+        --      objects
         -- *****************
         for d in all(drawables) do
             d:draw()
@@ -722,8 +656,6 @@ function platforming_state()
         --        hud
         -- *****************
         s.drawhud()
-
-        
 
         if hero.respawned or showmsg then
             camera(0,0)
@@ -761,17 +693,12 @@ function platforming_state()
     s.drawhud=function()
         camera(0,0)
         fillp(0)
-        rectfill(0,0,127,20, 0) -- top banner
-        rect(2,2,125,18, 7) -- white frame top
-
-        rectfill(0,110,127,127, 0) -- bottom banner
-        rect(2,112,125,125, 7) -- white frame top
-
-        rectfill(50,110, 74, 115, 7)    -- memory bkg
-        print("MEMORY", 51, 110, 0)
+        local yy=106
+        rectfill(0,yy,127,127, 0) -- bottom banner
+        rect(2,yy+2,125,125, 7) -- white frame top
 
         local sx=5
-        local sy=6
+        local sy=yy+5
         local hgt=4
         local wdt=58
         rectfill(sx,sy, sx+wdt, sy+hgt, 8)
@@ -779,44 +706,26 @@ function platforming_state()
 
         local h=hero.health
         local hx=22
-        rectfill(hx,16, hx+24,21, 7)
-        print("HEALTH", hx+1, 16, 0)
+        print("health", sx+wdt+3, sy, 8)
         for i=1,h do
             -- draw each life bar
             rectfill(sx,sy+2, sx+1, sy+hgt-2, 7)
             sx+=3
         end
 
-        local p=hero.potions
-        local px=88
-        rectfill(px,16, px+28,21, 7)
-        print("POTIONS", px+1, 16, 0)
-        
-        sx=px
-        wdt=28
+        print("money", wdt+41, sy, 10)
+
+        sx=5
+        sy=yy+12
+        wdt-=15
         rectfill(sx,sy, sx+wdt, sy+hgt, 8)
         rectfill(sx,sy+1, sx+wdt, sy+hgt-1, 0)
+        print("popularity", sx+wdt+2, sy, 8)
+        local p = hero.popularity or 15
         for i=1,p do
-            -- draw each potion bar
-            rectfill(px,sy+2, px+1, sy+hgt-2, 7)
-            px+=3
-        end
-
-
-        local sxt=4
-        local syt=116
-        local ttw=38
-        local tth=7
-        local tsp=2
-        for i=1,3 do
-            local c=8
-            if(hero.memslots[i] == "empty") c=5
-
-            local onepx=0
-            if(i==2)onepx=1
-
-            rectfill(sxt,syt,  sxt+ttw+onepx, syt+tth, c)
-            sxt+=ttw+tsp+onepx
+            -- draw each life bar
+            rectfill(sx,sy+2, sx+1, sy+hgt-2, 7)
+            sx+=3
         end
     end
 

@@ -17,18 +17,14 @@ __lua__
 --<*gfight_state.lua
 --<*memory_state.lua 
 
--- sadly, the cabin "3d" state takes too many tokens :\ so i'm cutting it off
---  --<*cabin_state.lua
 --<*vertigo_state.lua
 --------------------------- end imports
 
 -- to enable mouse support uncomment all of the following commented lines:
 -- poke(0x5f2d, 1) -- enables mouse support
 function _init()
-    curstate=menu_state()
-    --curstate=cabin_state()
-    --curstate=platforming_state()
-    --curstate=memory_state(platforming_state(), "go east to find your murderer")
+    -- curstate=menu_state()
+    curstate=platforming_state()
 end
 
 function _update()

@@ -67,7 +67,7 @@ function memory_state(plat_state, msg, value)
             u:update()
         end
 
-        if timeout > 30 and (btnp(4) or btnp(5)) then -- X || O
+        if timeout > 30 and (btnp(4) or btnp(5)) then -- x || o
             sfx(5)
             if(ar.posidx==4) curstate=plat_state return -- "no" selected
 
@@ -96,14 +96,14 @@ function memory_state(plat_state, msg, value)
             local tw = 24 -- thought widht (also height as there are squares)
             local sp = 5  -- spacing
             for i=1,4 do
-                local slottxt="SLOT "..i;
+                local slottxt="slot "..i;
                 local c=5
                 local to=0 -- text offset
 
                 if(h.memslots[i] != "empty") c=8 
 
                 if i == 4 then
-                    slottxt="NO"
+                    slottxt="no"
                     c=6
                     to=8
                 end
