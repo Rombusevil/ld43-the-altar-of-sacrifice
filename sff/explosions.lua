@@ -31,7 +31,7 @@ function circle_explo(drawable,updateable)
 
 		for ex in all(self.circles) do
 			ex.t+=ex.s
-			if ex.t >= 20 then
+			if ex.t >= 15 then
 				del(self.circles, ex)
 			end
 		end

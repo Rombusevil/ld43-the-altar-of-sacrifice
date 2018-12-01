@@ -371,7 +371,7 @@ function platforming_state()
         if (flr(rnd(2)+1)%2==0) spr+=04
         -- todo randomizar si spr 40 o 44
         anim_obj:add(spr,1,0.1,1,2) -- idle
-        anim_obj:add(spr+8,2,0.9,1,2) -- attacking
+        anim_obj:add(spr+1,3,0.9,1,2) -- runaway
         anim_obj:add(spr+32,1,0.9,2,1) -- pickedup
         anim_obj:add(86,4,0.7,1,1) -- explode
     
@@ -379,6 +379,9 @@ function platforming_state()
         e:setpos(x,y)
         e:set_anim(1)
         e.health = 3
+        e.runaway = false
+        e.runawaytick=0
+        e.dir = 1
     
         local bounds_obj=bbox(8,8)
         e:set_bounds(bounds_obj)
@@ -391,6 +394,16 @@ function platforming_state()
                 -- todo: implement pickup en hero
                 attacker:pickup(self)
                 self:set_anim(3) -- pickedup
+                self.runaway=false
+            else
+                self.runaway=true
+                self:set_anim(2)
+                if flr(rnd(1)+1)%2==0 then
+                    self.dir=-1
+                    self.flipx=true
+                else
+                    self.dir=1
+                end
             end
         end
 
@@ -399,6 +412,15 @@ function platforming_state()
         end
 
         function e:update()
+            if self.runaway then
+                self.runawaytick+=1
+                self:setx(self.x+(0.8*self.dir))
+                if self.runawaytick > 60 then
+                    self.dir *= -1
+                    self.flipx=not self.flipx
+                    self.runawaytick = 0
+                end
+            end
         end
     
         -- overwrite entity's draw() function
@@ -562,9 +584,9 @@ function platforming_state()
                 end
 
                 for i=1,10 do
-                    local xx = (hero.x-100)+rnd(10)+(i*32)
-                    local yy = -22-rnd(32)+10
-                    local spd = 2+rnd(5)
+                    local xx = (hero.x-200)+rnd(50)+10+(i*64)
+                    local yy = -100-rnd(100)
+                    local spd = 4+rnd(2)
                     local b = self:newboulder(xx, yy, spd)
                     add(boulders, b)
                     add(updateables, b)
