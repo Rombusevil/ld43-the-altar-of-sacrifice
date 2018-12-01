@@ -43,7 +43,7 @@ function platforming_state()
         e:set_bounds(bounds_obj)
         --e.debugbounds=true
 
-        e.money = 100
+        e.money = 0
         e.pigs = 0
         e.potions=0
         e.pickedupvictim=nil
@@ -94,7 +94,8 @@ function platforming_state()
                 sfx(17)
                 curstate=s
                 pendingmusic=true
-                self:reset()
+                -- self:reset()
+                curstate=gameover_state(s)
             end
         end
 
@@ -229,7 +230,7 @@ function platforming_state()
         -- when you gameover and choose continue, everything's the same but your stats, that get resetted
         function e:reset()
             self.pigs = 0
-            self.respawned=true
+            self.money = 0
             self.speed=2--1.3
             self.floory=y
             self.jumppw=7
@@ -786,12 +787,14 @@ function platforming_state()
         end
 
         if hero.dropping and collides(stand.val, hero) then
-            printh("DROPPING")
             local v = hero.pickedupvictim
             hero.pickedupvictim=nil
             v.x = stand.val.x+4
             v.y = stand.val.y-3
             v:sacrifice()
+
+            -- todo: sfx de money
+            hero.money+=3
         end
 
         for p in all(potions) do
