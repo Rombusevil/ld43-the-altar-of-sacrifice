@@ -578,7 +578,7 @@ function platforming_state()
         
             function e1:update()
                 if collides(hero,self) then
-                    hero:hurt(2)
+                    hero:hurt(10)
                     self:kill()
                     return
                 end
