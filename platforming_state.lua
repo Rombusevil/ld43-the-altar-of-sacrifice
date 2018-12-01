@@ -45,6 +45,8 @@ function platforming_state()
 
         e.money = 0
         e.pigs = 0
+        e.sacrifices=19
+        e.maxsacrifices=20
         e.potions=0
         e.pickedupvictim=nil
         e.blockright=false
@@ -238,6 +240,7 @@ function platforming_state()
         -- when you gameover and choose continue, everything's the same but your stats, that get resetted
         function e:reset()
             self.pigs = 0
+            self.sacrifices=0
             self.money = 0
             self.speed=2--1.3
             self.floory=y
@@ -262,13 +265,6 @@ function platforming_state()
             end
         end
 
-        --overwrite entity's draw() function
-        e._draw=e.draw
-        function e:draw()
-            self:_draw()
-            -- custom draw
-        end
-    
         return e
     end
 
@@ -882,9 +878,13 @@ function platforming_state()
             v.x = stand.val.x+4
             v.y = stand.val.y-3
             v:sacrifice()
-
+            
             -- todo: sfx de money
             hero.money+=3
+            hero.sacrifices+=1
+            if hero.sacrifices >= hero.maxsacrifices then
+                curstate=win_state()
+            end
         end
 
         for p in all(potions) do
@@ -945,7 +945,7 @@ function platforming_state()
     s.drawhud=function()
         camera(0,0)
         fillp(0)
-        local yy=106
+        local yy=100
         rectfill(0,yy,127,127, 0) -- bottom banner
         rect(2,yy+2,125,125, 7) -- white frame top
 
@@ -953,9 +953,22 @@ function platforming_state()
         local sy=yy+5
         local hgt=4
         local wdt=58
+
+        print("sacrifices", sx, sy, 8)
+        local mssx = (10*4)+4
+        for i=1,hero.maxsacrifices do
+            local c=1
+            if hero.sacrifices >= i then
+                c=11
+            end
+            rectfill(mssx+1,sy-1,mssx+3,sy+5, c)
+            mssx+=4
+        end
+        
+        sy+=8
+        local ppsy=sy
         rectfill(sx,sy, sx+wdt, sy+hgt, 8)
         rectfill(sx,sy+1, sx+wdt, sy+hgt-1, 0)
-
         local h=hero.health
         local hx=22
         print("health", sx+wdt+3, sy, 8)
@@ -973,7 +986,7 @@ function platforming_state()
         print(hero.potions, wdt+33+24, sy+6, 7)
 
         sx=5
-        sy=yy+12
+        sy=yy+12+7
         wdt-=15
         rectfill(sx,sy, sx+wdt, sy+hgt, 8)
         rectfill(sx,sy+1, sx+wdt, sy+hgt-1, 0)

@@ -86,7 +86,7 @@ function shop_state(prevstate)
             end
         end
 
-        if timeout > 30 and fuse then
+        if timeout > 20 and fuse then
             fuse=false
             add(txt, pressx)
         end

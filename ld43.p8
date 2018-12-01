@@ -396,7 +396,7 @@ function shop_state(prevstate)
                 notenoughmoney=true
             end
         end
-        if timeout > 30 and fuse then
+        if timeout > 20 and fuse then
             fuse=false
             add(txt, pressx)
         end
@@ -555,6 +555,8 @@ function platforming_state()
         e:set_bounds(bounds_obj)
         e.money = 0
         e.pigs = 0
+        e.sacrifices=19
+        e.maxsacrifices=20
         e.potions=0
         e.pickedupvictim=nil
         e.blockright=false
@@ -714,6 +716,7 @@ function platforming_state()
         end
         function e:reset()
             self.pigs = 0
+            self.sacrifices=0
             self.money = 0
             self.speed=2
             self.floory=y
@@ -735,10 +738,6 @@ function platforming_state()
                 self.finalboss=false
                 deferpos=750 
             end
-        end
-        e._draw=e.draw
-        function e:draw()
-            self:_draw()
         end
         return e
     end
@@ -845,7 +844,6 @@ function platforming_state()
         end) 
         local bounds_obj=bbox(8,16)
         e:set_bounds(bounds_obj)
-        e.debugbounds=true
         function e:hurt(attacker)
             self.health -=1
             self:flicker(0.2)
@@ -1197,6 +1195,10 @@ function platforming_state()
             v.y = stand.val.y-3
             v:sacrifice()
             hero.money+=3
+            hero.sacrifices+=1
+            if hero.sacrifices >= hero.maxsacrifices then
+                curstate=win_state()
+            end
         end
         for p in all(potions) do
             if collides(p, hero) then
@@ -1230,13 +1232,25 @@ function platforming_state()
     s.drawhud=function()
         camera(0,0)
         fillp(0)
-        local yy=106
+        local yy=100
         rectfill(0,yy,127,127, 0) 
         rect(2,yy+2,125,125, 7) 
         local sx=5
         local sy=yy+5
         local hgt=4
         local wdt=58
+        print("sacrifices", sx, sy, 8)
+        local mssx = (10*4)+4
+        for i=1,hero.maxsacrifices do
+            local c=1
+            if hero.sacrifices >= i then
+                c=11
+            end
+            rectfill(mssx+1,sy-1,mssx+3,sy+5, c)
+            mssx+=4
+        end
+        sy+=8
+        local ppsy=sy
         rectfill(sx,sy, sx+wdt, sy+hgt, 8)
         rectfill(sx,sy+1, sx+wdt, sy+hgt-1, 0)
         local h=hero.health
@@ -1252,7 +1266,7 @@ function platforming_state()
         print("pot", wdt+33+21, sy, 7)
         print(hero.potions, wdt+33+24, sy+6, 7)
         sx=5
-        sy=yy+12
+        sy=yy+12+7
         wdt-=15
         rectfill(sx,sy, sx+wdt, sy+hgt, 8)
         rectfill(sx,sy+1, sx+wdt, sy+hgt-1, 0)
@@ -1321,16 +1335,17 @@ function win_state()
     local frbkg=11
     local frfg=6
     music(-1)
+    camera(0,0)
     sfx(-1)
     sfx(13)
     local ty=15
     add(texts, tutils({text="congratulations billy!!! ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
     add(texts, tutils({text="                         " ,centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2}))ty+=10
-    add(texts, tutils({text="you avenge your death and",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
-    add(texts, tutils({text="helped a misterious god  ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
-    add(texts, tutils({text="that now owes you one.   ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=20
-    add(texts, tutils({text="your friends are still",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
-    add(texts, tutils({text="dead though...",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
+    add(texts, tutils({text="you manage to calm the   ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
+    add(texts, tutils({text="gods and save the        ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
+    add(texts, tutils({text="remaining people in your ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=20
+    add(texts, tutils({text="village. althoug most are",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
+    add(texts, tutils({text="cuestioning the method...",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
     local restart_msg = "press ❎ to autodestroy"
     local msg = tutils({text="", blink=true, on_time=15, centerx=true,y=110,fg=0,bg=1,bordered=false,shadowed=true,sh=7})
     add(texts, msg)
