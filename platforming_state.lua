@@ -392,7 +392,7 @@ function platforming_state()
         local spri=40
         if (flr(rnd(2)+1)%2==0) spri+=04
         anim_obj:add(spri,1,0.1,1,2) -- idle
-        anim_obj:add(spri+1,3,0.9,1,2) -- runaway
+        anim_obj:add(spri+1,3,0.3,1,2) -- runaway
         anim_obj:add(spri+32,1,0.9,2,1) -- pickedup
         local e=entity(anim_obj)
         e:setpos(x,y)
