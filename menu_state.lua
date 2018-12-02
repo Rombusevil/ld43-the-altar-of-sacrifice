@@ -5,7 +5,7 @@ function menu_state()
 	
 	music(0)
 	sfx(0)
-	add(texts, tutils({text="the altar of sacrifices",centerx=true,y=8,fg=8,bg=0,bordered=true,shadowed=true,sh=2}))
+	add(texts, tutils({text="the altar of sacrifice",centerx=true,y=8,fg=8,bg=0,bordered=true,shadowed=true,sh=2}))
 	add(texts, tutils({text="ludum dare 43",centerx=true,y=19,fg=0,bg=0,bordered=false,shadowed=false,sh=2}))
 	add(texts, tutils({text="rombosaur studios",centerx=true,y=99,fg=9,sh=2,shadowed=true}))
 	local yy=40
