@@ -23,7 +23,6 @@ function circle_explo(drawable,updateable)
 	
 	-- call on _update() (clears & updates circles)
 	function ex:update()
-		printh("updating explo")
 		if ex.started and #self.circles == 0 then
 			del(drawable, self)
 			del(updateable, self)

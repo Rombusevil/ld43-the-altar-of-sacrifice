@@ -1,6 +1,6 @@
 -- state
 function shop_state(prevstate)
-    music(1)
+    -- music(8)
     local s={}
     local ents={}
     local h=prevstate.hero
@@ -65,7 +65,7 @@ function shop_state(prevstate)
 
         if timeout > 30 and (btnp(4) or btnp(5)) then -- x || o
             sfx(5)
-            if(ar.posidx==4) curstate=prevstate return -- "no" selected
+            if(ar.posidx==4) curstate=prevstate  return -- "no" selected
             local prices = {5,8,5}
 
             if h.money > prices[ar.posidx] then

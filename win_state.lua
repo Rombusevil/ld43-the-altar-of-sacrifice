@@ -1,6 +1,7 @@
 -- state
 function win_state()
-    music(-1)
+    camera(0,0)
+    music(16)
     local s={}
     local texts={}
     local timeout=2 -- for avoiding the user hitting x while playing and by that dismissing this screen. in seconds
@@ -8,11 +9,6 @@ function win_state()
     -- graphical frame 
     local frbkg=11
     local frfg=6
-
-    music(-1)
-    camera(0,0)
-    sfx(-1)
-    sfx(13)
     
     local ty=15
     add(texts, tutils({text="congratulations billy!!! ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10

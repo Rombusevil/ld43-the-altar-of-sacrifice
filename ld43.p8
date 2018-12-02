@@ -1,5 +1,5 @@
 pico-8 cartridge // http://www.pico-8.com
-version 16
+version 15
 __lua__
 -- made with super-fast-framework
 
@@ -230,7 +230,6 @@ function circle_explo(drawable,updateable)
 		add(self.circles,{x=x,y=y,t=time,s=rnd(2)+1}) time-=2
 	end
 	function ex:update()
-		printh("updating explo")
 		if ex.started and #self.circles == 0 then
 			del(drawable, self)
 			del(updateable, self)
@@ -326,7 +325,6 @@ function menu_state()
 	return state
 end
 function shop_state(prevstate)
-    music(1)
     local s={}
     local ents={}
     local h=prevstate.hero
@@ -379,7 +377,7 @@ function shop_state(prevstate)
         end
         if timeout > 30 and (btnp(4) or btnp(5)) then 
             sfx(5)
-            if(ar.posidx==4) curstate=prevstate return 
+            if(ar.posidx==4) curstate=prevstate  return 
             local prices = {5,8,5}
             if h.money > prices[ar.posidx] then
                 if ar.posidx == 1 or ar.posidx == 2then
@@ -452,7 +450,7 @@ function shop_state(prevstate)
     return s
 end
 function platforming_state()
-    music(1)
+    sfx(6)
     local s={}
     local updateables={}
     local drawables={}
@@ -539,6 +537,7 @@ function platforming_state()
             self.notifyjumpobj=obj
         end
         function e:pickup(victim)
+            sfx(4)
             self.pickedupvictim = victim
         end
         function e:doblockright()
@@ -751,6 +750,7 @@ function platforming_state()
         function e:sacrifice()
             self:set_anim(4)
             s.hero.pigs = 0
+            sfx(11)
         end
         function e:update()
         end
@@ -800,9 +800,11 @@ function platforming_state()
         end
         function e:sacrifice()
             self:set_anim(4)
+            sfx(11)
         end
         function e:upset()
             if not self.isupset then
+                sfx(5)
                 self.isupset=true
                 hero.reputation-=3
             end
@@ -816,13 +818,9 @@ function platforming_state()
                     self.flipx=not self.flipx
                     self.runawaytick = 0
                 end
-                printh(#victims)
                 for v in all(victims) do
-                    printh("iterando")
                     if not (v==self) then
-                        printh("factible")
                         if collides(v,self) then
-                            printh("upseteando")
                             v:upset()
                         end
                     end
@@ -864,8 +862,10 @@ function platforming_state()
                 add(drawables, t)
                 add(updateables, t)
                 add(thiefs, t)
+                sfx(9)
             end
             if self.timetick > self.timethreshold then
+                sfx(2)
                 local idx = flr(rnd(#houses-1)+1)
                 local house = houses[idx]
                 local rndx = rnd(10)
@@ -917,6 +917,7 @@ function platforming_state()
                 add(drawables, ex)
                 add(updateables, ex)
                 ex:multiexplode(self.x, self.y)
+                sfx(10)
             end
             function e1:update()
                 if collides(hero,self) then
@@ -1010,11 +1011,14 @@ function platforming_state()
             if(self.flickerer.is_flickering) return
             self:flicker(30)
             self.health -= 1
+            sfx(4)
         end
         function e:kill()
             del(drawables, self)
             del(updateables, self)
             del(thiefs,self)
+            sfx(6)
+            sfx(12)
         end
         function e:update()
             if self.health <= 0 then
@@ -1253,20 +1257,20 @@ function gameover_state(cause)
     camera(0,0)
     local frbkg=8
     local frfg=6
-    music(-1)
+    music(10)
     sfx(-1)
     local ty=15
     if cause == 'health' then
         add(texts, tutils({text="you couldn't tame the gods",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
         add(texts, tutils({text="the people in your village" ,centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2}))ty+=10
-        add(texts, tutils({text="hates you.",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
+        add(texts, tutils({text="hate you.                 ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
         add(texts, tutils({text="                         ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
         add(texts, tutils({text="game over",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=20
         add(texts, tutils({text="                         ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
     else 
         add(texts, tutils({text="people in your village  ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
         add(texts, tutils({text="reunited and killed you." ,centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2}))ty+=10
-        add(texts, tutils({text="thers probably someone  ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
+        add(texts, tutils({text="there's probably someone",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
         add(texts, tutils({text="dancing on your grave   ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
         add(texts, tutils({text="right now.              ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=20
         add(texts, tutils({text="game over",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
@@ -1304,16 +1308,13 @@ function gameover_state(cause)
     return s
 end
 function win_state()
-    music(-1)
+    camera(0,0)
+    music(16)
     local s={}
     local texts={}
     local timeout=2 
     local frbkg=11
     local frfg=6
-    music(-1)
-    camera(0,0)
-    sfx(-1)
-    sfx(13)
     local ty=15
     add(texts, tutils({text="congratulations billy!!! ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
     add(texts, tutils({text="                         " ,centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2}))ty+=10
@@ -1354,7 +1355,6 @@ function win_state()
     end
     return s
 end
--- <*gfight_state.lua
 
 
 -- <*vertigo_state.lua
@@ -1487,17 +1487,45 @@ __sfx__
 00020000076500765005650110500f0500c0501660016600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000500000505003050000000505007050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000600000763007050000000363003050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001400002e750070102e7500c0102e750000002e7500a0102e750070002e7000c0002e700050002e7000500000000050000000000000000000000000000000000000000000000000000000000000000000000000
-000300002d650236501b6501665012650016500000000000000000160000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000b00001605007010130500c01018050000001f0500a0101d0501d0301d0000c0002e700050002e7000500000000050000000000000000000000000000000000000000000000000000000000000000000000000
+000300002d610236101b6101661012610016100000000000000000160000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00050000070500a050111500265003600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000500001b1501b1301b11027150271302b1502b13030150301503015030100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00100000000001d0501b0501f050240502b0500000000000220501f05024050290502e05033000000001f0502b0501f050270501f050220501f050270501f0502b05033050370503a050000003a0500000035050
-000a00201f0501f0001f0501f000036500000030150000001b050070001b0502e2000365000000241502b1001d050291001d05000000036502b100240503015022050180501d0500f050036500f0501605000000
-000a00201f0201f0001f0201f000036200000030100000001b020070001b0202e2000362000000241002b1001d020291001d02000000036202b100240203010022020180001d0200f000036200f0001600000000
-00060020054500000007400000001d0500000000000000001c0500000000000000001d050000000540000000240500000000000000001d0500000007400000001c0500000005400000001d050000000760000000
-000e00002405024050240301f0501f0501f0201805018050180501805000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00100000110500100011050111201305011120180500000016050160501112016050111201305013120160502b0001f000270001f000220001f000270001f0002b00033000370003a000000003a0000000035000
+011400201f0001f000106201f0001c13000000301000c0501b00007000106302e2001513000000241000c0501d000291001063000000036000c050240000c0502200018000106300f0001a1500f000181500c050
+011400201a13018130106301f0001c13000000301000c0501b0001f130106301c1301513000000131500c0501d000291001063000000036000c050131500c0501115010150106300f0001a1500f000181500c030
+011400201c130181301f5301f0001813000000000001f5301b000181301f5301513013130000000e1501d5301c530291001f55000000036001c0501a1501f530211201f1301f5300f0001c1200f0001d13000000
+011400201c120181201f5201f0001812000000000001f5201b000181201f5201512013120000000e1201d5201c520291001f52000020036001c0201a1201f520211201f1201f5200f0001c1200f0001d12000000
+011400201a12018120106201f0001c12000000301000c0201b0001f120106201c1201512000000131200c0201d000291001062000000036000c020131200c0201112010120106200f0001a1200f000181200c020
+011400000405004050040500405000000000000000000000020500205002050020500000000000000000000000050000500005000050000000000000000000000005000050000500005000000000000005002050
+01140000000000000000000000000c630000000000000000000000000000000000000c630000000000000000000000000000000000000c630000000000000000000000000000000000000c630000000000000000
+011000000000000000000000000000000000000e3310e33000000112320e2330c23400000000000e3310e3300000000000000001023410234000000e3310e330000000c2320e2310000000000000000e3310e330
+010c00000c050000000c0501c13018630000001c120000000c050000000c0500000018630000001c120000000c050000000c0501c13018630000001c120000000c050000000c0500000018630000001c12018100
+010c0000000000000023110000000000000000231100000000000000001313000000111300000018130000001113000000101300000000000000000000000000231100000000000000000c130000001013000000
+010c000000000000001f1100000000000000001f1100000000000000001d130000001f130000001c1300000000000000001f1100000000000000001f11000000000000000018130000001a130000001a13000000
 __music__
-03 0e4b4344
-03 0f424344
-03 10424344
+01 0e4e4f44
+00 0e424344
+00 0f424344
+00 0f504344
+00 0f104344
+00 0f104344
+00 0f104344
+02 0f504344
+01 11424344
+02 51124344
+01 13425544
+00 13145544
+00 13145544
+00 13141544
+00 13141544
+02 13141544
+01 16424344
+00 16424344
+00 16174344
+00 16424344
+00 16174344
+00 16174344
+00 16571844
+02 16571844
 

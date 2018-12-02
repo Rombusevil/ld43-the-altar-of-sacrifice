@@ -15,7 +15,6 @@ __lua__
 --<*platforming_state.lua
 --<*gameover_state.lua
 --<*win_state.lua
--- <*gfight_state.lua
 
 
 -- <*vertigo_state.lua

@@ -1,6 +1,7 @@
 -- state
 function platforming_state()
-    music(1)
+    sfx(6)
+    --music(1)
     local s={}
     local updateables={}
     local drawables={}
@@ -106,6 +107,7 @@ function platforming_state()
         end
 
         function e:pickup(victim)
+            sfx(4)
             self.pickedupvictim = victim
         end
 
@@ -375,6 +377,7 @@ function platforming_state()
             self:set_anim(4)
             -- todo: usar la cant de s.hero.pigs  para sumar points o whatever
             s.hero.pigs = 0
+            sfx(11)
         end
 
         function e:update()
@@ -433,10 +436,12 @@ function platforming_state()
 
         function e:sacrifice()
             self:set_anim(4)
+            sfx(11)
         end
 
         function e:upset()
             if not self.isupset then
+                sfx(5)
                 self.isupset=true
                 hero.reputation-=3
             end
@@ -452,13 +457,9 @@ function platforming_state()
                     self.runawaytick = 0
                 end
 
-                printh(#victims)
                 for v in all(victims) do
-                    printh("iterando")
                     if not (v==self) then
-                        printh("factible")
                         if collides(v,self) then
-                            printh("upseteando")
                             v:upset()
                         end
                     end
@@ -509,9 +510,11 @@ function platforming_state()
                 add(drawables, t)
                 add(updateables, t)
                 add(thiefs, t)
+                sfx(9)
             end
 
             if self.timetick > self.timethreshold then
+                sfx(2)
                 local idx = flr(rnd(#houses-1)+1)
                 local house = houses[idx]
                 local rndx = rnd(10)
@@ -574,6 +577,7 @@ function platforming_state()
                 add(drawables, ex)
                 add(updateables, ex)
                 ex:multiexplode(self.x, self.y)
+                sfx(10)
             end
         
             function e1:update()
@@ -702,12 +706,15 @@ function platforming_state()
             if(self.flickerer.is_flickering) return
             self:flicker(30)
             self.health -= 1
+            sfx(4)
         end
 
         function e:kill()
             del(drawables, self)
             del(updateables, self)
             del(thiefs,self)
+            sfx(6)
+            sfx(12)
         end
 
         function e:update()

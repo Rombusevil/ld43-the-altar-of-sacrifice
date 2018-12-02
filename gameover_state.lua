@@ -8,7 +8,7 @@ function gameover_state(cause)
     local frbkg=8
     local frfg=6
 
-    music(-1)
+    music(10)
     sfx(-1)
     
     local ty=15
@@ -22,7 +22,7 @@ function gameover_state(cause)
     else -- 'reputation'
         add(texts, tutils({text="people in your village  ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
         add(texts, tutils({text="reunited and killed you." ,centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2}))ty+=10
-        add(texts, tutils({text="thers probably someone  ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
+        add(texts, tutils({text="there's probably someone",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
         add(texts, tutils({text="dancing on your grave   ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
         add(texts, tutils({text="right now.              ",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=20
         add(texts, tutils({text="game over",centerx=true,y=ty,fg=8,bg=0,bordered=true,shadowed=true,sh=2})) ty+=10
